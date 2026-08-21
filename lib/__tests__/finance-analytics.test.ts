@@ -109,14 +109,12 @@ describe('rollupNegotiationsByCurrency', () => {
       neg({ status: 'complete', amount_cents: null, currency: 'usd' }), // amount-less → skipped
     ])
     const usd = rows.find((r) => r.currency === 'usd')!
-    expect(usd.agreedCents).toBe(8000) // held 5000 + complete 3000
-    expect(usd.deals).toBe(2)
+    expect(usd.agreedCents).toBe(9500) // every live funded lifecycle, including reversals
+    expect(usd.deals).toBe(4)
     expect(usd.heldCents).toBe(5000)
-    expect(usd.completeCents).toBe(3000)
+    expect(usd.completeCents).toBe(4500)
     expect(usd.reversedCents).toBe(1500) // refunded 1000 + disputed 500
-    const gbp = rows.find((r) => r.currency === 'gbp')!
-    expect(gbp.agreedCents).toBe(2000)
-    expect(gbp.heldCents).toBe(0)
+    expect(rows.find((r) => r.currency === 'gbp')).toBeUndefined()
   })
 
   it('excludes test-mode and unverified funded negotiations', () => {
@@ -145,7 +143,7 @@ describe('rollupNegotiationsByCurrency', () => {
 
 describe('getReversalRate', () => {
   it('is reversed / (complete + reversed), or null when there is no settled volume', () => {
-    expect(getReversalRate({ completeCents: 9000, reversedCents: 1000 })).toBeCloseTo(0.1)
+    expect(getReversalRate({ completeCents: 10000, reversedCents: 1000 })).toBeCloseTo(0.1)
     expect(getReversalRate({ completeCents: 0, reversedCents: 0 })).toBeNull()
   })
 })
@@ -186,6 +184,25 @@ describe('buildMarketplaceLedger', () => {
     expect(row.amountCents).toBe(1000) // ¥1,000 smallest unit, not 100000
     expect(row.feeCents).toBe(60) // snapshot fee, already smallest unit
     expect(row.netCents).toBe(940) // 1000 − 60, both smallest unit
+  })
+
+  it('records a partial negotiated refund as its actual outflow and retained proportional fee', () => {
+    const [row] = buildMarketplaceLedger([], [
+      neg({
+        id: 'partial',
+        status: 'refunded',
+        amount_cents: 10000,
+        refunded_cents: 2500,
+        application_fee_cents: 1000,
+        updated_at: '2026-06-14T00:00:00Z',
+      }),
+    ], 15)
+    expect(row.amountCents).toBe(10000)
+    expect(row.feeCents).toBe(750)
+    expect(row.netCents).toBe(2500)
+    expect(row.isReversal).toBe(true)
+    expect(row.status).toBe('partial_refund')
+    expect(row.timestamp).toBe('2026-06-14T00:00:00Z')
   })
 
   it('respects the limit (most recent first)', () => {

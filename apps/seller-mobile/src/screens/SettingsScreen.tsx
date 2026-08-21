@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { Bell, ChevronRight, CreditCard, ExternalLink, Globe, KeyRound, LogOut, Plug, SlidersHorizontal, Upload, Users } from 'lucide-react-native'
+import { Bell, ChevronRight, CreditCard, ExternalLink, Globe, KeyRound, LogOut, Plug, SlidersHorizontal, Upload, Users, WalletCards } from 'lucide-react-native'
 import { useState } from 'react'
 import { Switch, Text, View } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
@@ -57,6 +57,7 @@ export function SettingsScreen() {
       <SectionTitle title="Business tools" />
       <GroupCard>
         <GroupRow icon={Plug} title="Integrations" onPress={() => router.push('/tools/integrations')} right={<Meta text="Connections" />} />
+        <GroupRow icon={WalletCards} iconTone="gold" title="Finance & payouts" onPress={() => router.push('/tools/finance')} right={<Meta text="Live totals" />} />
         <GroupRow icon={CreditCard} iconTone="gold" title="Billing & plan" onPress={() => router.push('/tools/billing')} right={<Meta text={plan} />} />
         <GroupRow icon={Upload} title="Import a business" onPress={() => router.push('/tools/importer')} right={<Meta />} last />
       </GroupCard>

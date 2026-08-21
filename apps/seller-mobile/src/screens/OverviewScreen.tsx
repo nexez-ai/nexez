@@ -90,14 +90,14 @@ export function OverviewScreen() {
         <View style={s.heroContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View>
-              <Text style={s.heroLabel}>Pipeline · 30d</Text>
-              <Text style={s.heroValue}>{formatCurrency(data.pipelineCents)}</Text>
-              <Text style={s.heroDelta}>{data.conversions} conversions</Text>
+              <Text style={s.heroLabel}>Settled sales · 30d</Text>
+              <Text style={s.heroValue}>{formatCurrency(data.pipelineCents, data.financeCurrency)}</Text>
+              <Text style={s.heroDelta}>{data.financeCurrency.toUpperCase()} · Stripe confirmed</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={s.heroLabel}>Payouts</Text>
-              <Text style={s.heroSecondary}>{formatCurrency(data.payoutsCents)}</Text>
-              <Text style={s.heroMeta}>from paid orders</Text>
+              <Text style={s.heroLabel}>Net sales</Text>
+              <Text style={s.heroSecondary}>{formatCurrency(data.payoutsCents, data.financeCurrency)}</Text>
+              <Text style={s.heroMeta}>after refunds + Nexez fees</Text>
             </View>
           </View>
           <View style={s.spark}>

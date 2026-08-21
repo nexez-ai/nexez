@@ -200,7 +200,9 @@ export type NegotiationFinanceRow = {
   offer_name?: string | null
   buyer_agent?: string | null
   created_at?: string | null
+  updated_at?: string | null
   stripe_livemode: boolean | null
+  refunded_cents?: number | null
   commission_percent?: number | null
   application_fee_cents?: number | null
 }
@@ -214,9 +216,9 @@ export type NegotiationCurrencyRow = {
   reversedCents: number
 }
 
-// A deal counts as "agreed" once it reaches/passes agreement. Reversals
-// (refunded/disputed) are surfaced separately as money OUT, not in agreed/deals.
-const AGREED_STATUSES = new Set(['agreement_proposed', 'held', 'complete'])
+// A deal counts as funded once real live-mode money reaches escrow. Reversals
+// remain in funded/captured history and are surfaced separately as money OUT.
+const AGREED_STATUSES = new Set(['held', 'complete', 'refunded', 'disputed'])
 
 /**
  * Per-currency roll-up of the negotiated/escrow channel: agreed value + deal
@@ -227,7 +229,7 @@ const AGREED_STATUSES = new Set(['agreement_proposed', 'held', 'complete'])
 export function rollupNegotiationsByCurrency(negs: NegotiationFinanceRow[]): NegotiationCurrencyRow[] {
   const map = new Map<string, NegotiationCurrencyRow>()
   for (const n of negs) {
-    if (!n.amount_cents || n.stripe_livemode !== true) continue
+    if (!n.amount_cents || n.stripe_livemode !== true || !AGREED_STATUSES.has(n.status)) continue
     const currency = normalizeCurrency(n.currency)
     const row =
       map.get(currency) ??
@@ -236,13 +238,17 @@ export function rollupNegotiationsByCurrency(negs: NegotiationFinanceRow[]): Neg
     // the rest of finance (formatCurrencyAmount) displays, so zero-decimal (JPY/KRW)
     // deals aren't shown 100× too large.
     const cents = minorToStripeAmount(n.amount_cents, currency)
-    if (AGREED_STATUSES.has(n.status)) {
-      row.agreedCents += cents
-      row.deals += 1
-    }
+    row.agreedCents += cents
+    row.deals += 1
+    const refunded = n.status === 'disputed'
+      ? cents
+      : n.status === 'refunded' && !n.refunded_cents
+        ? cents
+        : Math.min(cents, Math.max(0, Number(n.refunded_cents) || 0))
     if (n.status === 'held') row.heldCents += cents
     else if (n.status === 'complete') row.completeCents += cents
-    else if (n.status === 'refunded' || n.status === 'disputed') row.reversedCents += cents
+    else if (n.status === 'refunded' || n.status === 'disputed') row.completeCents += cents
+    row.reversedCents += refunded
     map.set(currency, row)
   }
   return [...map.values()].sort((a, b) => b.agreedCents - a.agreedCents)
@@ -254,7 +260,7 @@ export function rollupNegotiationsByCurrency(negs: NegotiationFinanceRow[]): Neg
  * (mirrors pctDelta's "no signal → null" so the UI shows "-" not a fake 0%).
  */
 export function getReversalRate(row: { completeCents: number; reversedCents: number }): number | null {
-  const denom = row.completeCents + row.reversedCents
+  const denom = row.completeCents
   if (denom <= 0) return null
   return row.reversedCents / denom
 }
@@ -264,6 +270,7 @@ export function getReversalRate(row: { completeCents: number; reversedCents: num
 export type LedgerEntry = {
   id: string
   channel: 'direct' | 'negotiated'
+  sourceChannel?: string | null
   timestamp: string
   offerName: string
   pageSlug: string
@@ -299,11 +306,13 @@ export function buildMarketplaceLedger(
     if (!isLiveOrder(order)) continue
     const amountCents = order.amount_cents
     const remainingCents = orderRemainingCents(order)
+    const refundedCents = amountCents - remainingCents
     const feeCents = retainedFeeCents(order, commissionPct)
     const buyerLabel = order.buyer_agent || order.buyer_name || order.buyer_email || order.buyer_reference || 'Buyer'
     entries.push({
       id: order.id,
       channel: 'direct',
+      sourceChannel: order.channel,
       timestamp: order.created_at,
       offerName: order.offer_name || order.offer_key || 'Order',
       pageSlug: order.slug ?? '',
@@ -312,7 +321,7 @@ export function buildMarketplaceLedger(
       currency: orderCurrency(order),
       feeCents,
       netCents: Math.max(0, remainingCents - feeCents),
-      status: order.status,
+      status: refundedCents > 0 && remainingCents > 0 ? 'partial_refund' : order.status,
       isReversal: remainingCents === 0,
     })
   }
@@ -322,24 +331,33 @@ export function buildMarketplaceLedger(
     // with the (already smallest-unit) application_fee_cents snapshot + the display
     // formatter; otherwise zero-decimal currencies mis-state amount/fee/net.
     const amountCents = minorToStripeAmount(n.amount_cents, normalizeCurrency(n.currency))
-    const isReversal = n.status === 'refunded' || n.status === 'disputed'
-    // A refund/dispute returns the full amount to the buyer (escrow refunds aren't
-    // fee-reduced), so the seller's outflow is the whole amount - fee n/a.
-    // Prefer snapshot at charge time if present (from migration 20260627000000).
-    const snapshotFee = (n as any).application_fee_cents
-    const feeCents = isReversal ? 0 : (typeof snapshotFee === 'number' && snapshotFee != null ? snapshotFee : calculateApplicationFeeCents(amountCents, commissionPct))
+    const refundedCents = n.status === 'disputed'
+      ? amountCents
+      : n.status === 'refunded' && !n.refunded_cents
+        ? amountCents
+        : Math.min(amountCents, Math.max(0, Number(n.refunded_cents) || 0))
+    const isReversal = n.status === 'disputed' || refundedCents > 0
+    const remainingCents = Math.max(0, amountCents - refundedCents)
+    // Prefer snapshot at charge time if present (from migration 20260627000000),
+    // then reduce retained fee proportionally for a partial or full refund.
+    const snapshotFee = n.application_fee_cents
+    const originalFeeCents = snapshotFee != null && Number.isFinite(Number(snapshotFee))
+      ? Number(snapshotFee)
+      : calculateApplicationFeeCents(amountCents, commissionPct)
+    const feeCents = amountCents > 0 ? Math.round((originalFeeCents * remainingCents) / amountCents) : 0
     entries.push({
       id: n.id ? `neg-${n.id}` : `neg-${n.slug ?? ''}-${n.created_at ?? ''}`,
       channel: 'negotiated',
-      timestamp: n.created_at ?? '',
+      sourceChannel: 'negotiation',
+      timestamp: isReversal ? n.updated_at ?? n.created_at ?? '' : n.created_at ?? '',
       offerName: n.offer_name || 'Negotiated deal',
       pageSlug: n.slug ?? '',
       buyerLabel: (n.buyer_agent || 'Agent').slice(0, 72),
       amountCents,
       currency: normalizeCurrency(n.currency),
       feeCents,
-      netCents: isReversal ? amountCents : amountCents - feeCents,
-      status: n.status,
+      netCents: isReversal ? refundedCents : Math.max(0, remainingCents - feeCents),
+      status: refundedCents > 0 && refundedCents < amountCents ? 'partial_refund' : n.status,
       isReversal,
     })
   }

@@ -44,6 +44,7 @@ import { ProBadge } from '../../../components/billing/PlanGate'
 import { appUrl } from '../../../lib/site'
 import { RevenueChart } from './RevenueChart'
 import { DataLoadNotice } from '../../../components/dashboard/DataLoadNotice'
+import { loadFinanceRollup, type FinanceRollup } from '../../../lib/finance-report'
 
 type FinanceProps = {
   searchParams: Promise<{ range?: string; from?: string; to?: string; currency?: string }>
@@ -84,7 +85,14 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
   }
 
   // analyticsHistory (Pro): All-time + custom ranges are Pro; clamp server-side.
-  const planId = await getOwnerPlanId(supabase, user.id)
+  const [planId, billingResult] = await Promise.all([
+    getOwnerPlanId(supabase, user.id),
+    supabase
+      .from('billing_subscriptions')
+      .select('*')
+      .eq('owner_id', user.id)
+      .maybeSingle<BillingSubscription>(),
+  ])
   const fullHistory = planAllows(planId, 'analyticsHistory')
   const historyWindow = clampHistoryRange({ range: filters.range, from: filters.from, to: filters.to }, fullHistory)
   const range = historyWindow.range || '30d'
@@ -92,71 +100,81 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
   const { cutoff, until } = rangeBounds
 
   // Billing + Connect (the seller's own subscription + payout account).
-  const { data: billing, error: billingError } = await supabase
-    .from('billing_subscriptions')
-    .select('*')
-    .eq('owner_id', user.id)
-    .maybeSingle<BillingSubscription>()
+  const { data: billing, error: billingError } = billingResult
   const activePlan = getBillingPlan(planId)
   const commissionPct = getCommissionPercentForPlan(planId)
   const connectAccountId = billing?.stripe_connect_account_id ?? null
   const payoutsReady = Boolean(billing?.stripe_connect_payouts_enabled)
-  const payouts = await getConnectPayoutSnapshot(connectAccountId)
-  const nextPayout = getNextPayout(payouts)
-
-  // Negotiated/escrow channel - one widened read feeds the channel split, the
-  // escrow-lifecycle strip, AND the recent-activity ledger.
-  const { data: negRowsRaw, error: negotiationError } = await supabase
-    .from('agent_negotiations')
-    .select('id, status, amount_cents, currency, slug, offer_name, buyer_agent, created_at, commission_percent, application_fee_cents, stripe_livemode')
-    .eq('owner_id', user.id)
-    .eq('stripe_livemode', true)
-    .order('created_at', { ascending: false })
-    .limit(500)
-    .returns<NegotiationFinanceRow[]>()
-  const negRows = negRowsRaw ?? []
-  const negByCurrency = rollupNegotiationsByCurrency(negRows)
-
-  // Durable Stripe-confirmed live orders. One read powers reporting, the ledger,
-  // and in-app refunds. Test and unverified historical rows fail closed here.
-  const { data: orderRows, error: orderError } = await supabase
-    .from('checkout_orders')
-    .select('id, page_id, offer_name, offer_key, amount_cents, currency, status, channel, slug, refunded_cents, buyer_email, buyer_name, buyer_reference, buyer_agent, commission_percent, application_fee_cents, stripe_livemode, created_at')
-    .eq('owner_id', user.id)
-    .eq('stripe_livemode', true)
-    .order('created_at', { ascending: false })
-    .limit(1000)
-    .returns<DirectFinanceRow[]>()
-  const orders = orderRows ?? []
   const cutoffIso = cutoff.toISOString()
   const untilIso = until?.toISOString()
-  const ordersInWindow = orders.filter(
-    (order) => order.created_at >= cutoffIso && (!untilIso || order.created_at <= untilIso),
-  )
-
-  // Buyer-filed recourse (refund requests / problem reports from the order portal).
-  const { data: requestRows, error: requestError } = await supabase
-    .from('order_requests')
-    .select('id, order_kind, kind, status, message, buyer_email, slug, created_at')
-    .eq('owner_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(100)
-    .returns<BuyerRequestRow[]>()
+  const prevBounds = previousPeriodBounds(rangeBounds)
+  const fallbackCommissionBps = Math.round(commissionPct * 100)
+  const [financeResult, previousFinanceResult, negotiationResult, orderResult, requestResult, payouts] = await Promise.all([
+    loadFinanceRollup(supabase, { from: cutoff, to: until, fallbackCommissionBps }),
+    prevBounds
+      ? loadFinanceRollup(supabase, { from: prevBounds.cutoff, to: prevBounds.until, fallbackCommissionBps })
+      : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from('agent_negotiations')
+      .select('id, status, amount_cents, currency, refunded_cents, slug, offer_name, buyer_agent, created_at, updated_at, commission_percent, application_fee_cents, stripe_livemode')
+      .eq('owner_id', user.id)
+      .eq('stripe_livemode', true)
+      .order('updated_at', { ascending: false })
+      .limit(100)
+      .returns<NegotiationFinanceRow[]>(),
+    supabase
+      .from('checkout_orders')
+      .select('id, page_id, offer_name, offer_key, amount_cents, currency, status, channel, slug, refunded_cents, buyer_email, buyer_name, buyer_reference, buyer_agent, commission_percent, application_fee_cents, stripe_livemode, created_at')
+      .eq('owner_id', user.id)
+      .eq('stripe_livemode', true)
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .returns<DirectFinanceRow[]>(),
+    supabase
+      .from('order_requests')
+      .select('id, order_kind, order_id, kind, status, message, buyer_email, slug, created_at')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .returns<BuyerRequestRow[]>(),
+    getConnectPayoutSnapshot(connectAccountId),
+  ])
+  const nextPayout = getNextPayout(payouts)
+  const report = financeResult.data
+  const previousReport = previousFinanceResult.data
+  const negRows = negotiationResult.data ?? []
+  const orders = orderResult.data ?? []
+  const ordersInWindow = orders.filter((order) => order.created_at >= cutoffIso && (!untilIso || order.created_at <= untilIso))
+  const negInWindow = negRows.filter((n) => !!n.created_at && n.created_at >= cutoffIso && (!untilIso || n.created_at <= untilIso))
+  const requestRows = requestResult.data
   const buyerRequests = requestRows ?? []
   const dataIssues = [
+    financeResult.error ? 'exact finance reporting (showing a recent sample)' : null,
     billingError ? 'billing status' : null,
-    negotiationError ? 'negotiated transactions' : null,
-    orderError ? 'checkout orders' : null,
-    requestError ? 'buyer requests' : null,
+    negotiationResult.error ? 'recent negotiated transactions' : null,
+    orderResult.error ? 'recent checkout orders' : null,
+    requestResult.error ? 'buyer requests' : null,
+    previousFinanceResult.error ? 'previous-period finance reporting' : null,
     connectAccountId && payouts == null ? 'payout status' : null,
   ].filter((issue): issue is string => Boolean(issue))
 
   // Per-currency roll-up + the selected currency for the hero/trend/top-offers.
-  const byCurrency = rollupFinanceByCurrency(ordersInWindow, commissionPct)
+  const byCurrency = report
+    ? report.currencies.map((row) => ({
+        currency: row.currency,
+        gmvCents: row.grossCents,
+        orders: row.transactions,
+        refundedCents: row.outflowCents,
+        nexezFeeCents: row.feeCents,
+        netCents: row.netCents,
+        aovCents: row.aovCents,
+      }))
+    : rollupFinanceByCurrency(ordersInWindow, commissionPct)
   // Currency selector spans BOTH channels (checkout + negotiated), dominant first,
   // so a seller with only negotiated revenue in a currency can still select it.
-  const directCurrencies = getCurrencyOptions(ordersInWindow)
-  const currencyOptions = [...directCurrencies, ...negByCurrency.map((r) => r.currency).filter((c) => !directCurrencies.includes(c))]
+  const directCurrencies = report?.currencies.map((row) => row.currency) ?? getCurrencyOptions(ordersInWindow)
+  const escrowCurrencies = report?.escrow.map((row) => row.currency) ?? rollupNegotiationsByCurrency(negRows).map((row) => row.currency)
+  const currencyOptions = [...directCurrencies, ...escrowCurrencies.filter((currency) => !directCurrencies.includes(currency))]
   const requested = filters.currency ? normalizeCurrency(filters.currency) : null
   const selectedCurrency = requested && currencyOptions.includes(requested) ? requested : currencyOptions[0] ?? 'usd'
   const sel =
@@ -164,21 +182,39 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
     { currency: selectedCurrency, gmvCents: 0, orders: 0, refundedCents: 0, nexezFeeCents: 0, netCents: 0, aovCents: 0 }
   // All-time negotiated roll-up powers CURRENT-BALANCE concepts: escrow held KPI,
   // the escrow-lifecycle strip, and the reversal rate.
-  const negSel = negByCurrency.find((r) => r.currency === selectedCurrency) ?? { ...EMPTY_NEG, currency: selectedCurrency }
+  const exactEscrow = report?.escrow.find((row) => row.currency === selectedCurrency)
+  const negSel = exactEscrow
+    ? {
+        currency: exactEscrow.currency,
+        agreedCents: exactEscrow.fundedCents,
+        deals: exactEscrow.deals,
+        heldCents: exactEscrow.heldCents,
+        completeCents: exactEscrow.capturedCents,
+        reversedCents: exactEscrow.outflowCents,
+      }
+    : rollupNegotiationsByCurrency(negRows).find((row) => row.currency === selectedCurrency) ?? { ...EMPTY_NEG, currency: selectedCurrency }
   const heldSel = negSel.heldCents
-  const reversalRate = getReversalRate(negSel)
+  const reversalRate = exactEscrow
+    ? exactEscrow.capturedCents > 0
+      ? exactEscrow.outflowCents / exactEscrow.capturedCents
+      : null
+    : getReversalRate(negSel)
   // Windowed negotiated roll-up powers the FLOW comparison (channel cards + share
   // bar) so it's apples-to-apples with the windowed direct GMV.
-  const negInWindow = negRows.filter(
-    (n) => !!n.created_at && n.created_at >= cutoffIso && (!untilIso || n.created_at <= untilIso),
-  )
-  const negWindowSel =
-    rollupNegotiationsByCurrency(negInWindow).find((r) => r.currency === selectedCurrency) ??
-    { ...EMPTY_NEG, currency: selectedCurrency }
+  const exactNegotiatedWindow = report?.negotiatedWindow.find((row) => row.currency === selectedCurrency)
+  const negWindowSel = exactNegotiatedWindow
+    ? {
+        currency: exactNegotiatedWindow.currency,
+        agreedCents: exactNegotiatedWindow.fundedCents,
+        deals: exactNegotiatedWindow.deals,
+        heldCents: exactNegotiatedWindow.heldCents,
+        completeCents: exactNegotiatedWindow.capturedCents,
+        reversedCents: exactNegotiatedWindow.outflowCents,
+      }
+    : rollupNegotiationsByCurrency(negInWindow).find((row) => row.currency === selectedCurrency) ?? { ...EMPTY_NEG, currency: selectedCurrency }
 
   // Period-over-period deltas on the hero (bounded presets only; all-time/custom
   // have no "previous" so we skip the extra query and hide the chips).
-  const prevBounds = previousPeriodBounds(rangeBounds)
   const periodLabel = range === 'today' ? 'prior period' : range === '7d' ? 'prev 7d' : range === '1d' ? 'prev 24h' : 'prev 30d'
   const periodHuman =
     range === 'today' ? 'the prior period' : range === '7d' ? 'the previous 7 days' : range === '1d' ? 'the previous 24 hours' : 'the previous 30 days'
@@ -186,21 +222,11 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
   let netDelta: KpiDelta | null = null
   let feeDelta: KpiDelta | null = null
   let aovDelta: KpiDelta | null = null
-  if (prevBounds) {
-    const { data: prevRows, error: prevRowsError } = await supabase
-      .from('checkout_orders')
-      .select('id, page_id, offer_name, offer_key, amount_cents, currency, status, channel, slug, refunded_cents, buyer_email, buyer_name, buyer_reference, buyer_agent, commission_percent, application_fee_cents, stripe_livemode, created_at')
-      .eq('owner_id', user.id)
-      .eq('stripe_livemode', true)
-      .gte('created_at', prevBounds.cutoff.toISOString())
-      .lt('created_at', prevBounds.until.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1000)
-      .returns<DirectFinanceRow[]>()
-    if (prevRowsError) dataIssues.push('previous-period orders')
-    const prevSel =
-      rollupFinanceByCurrency(prevRows ?? [], commissionPct).find((r) => r.currency === selectedCurrency) ??
-      { gmvCents: 0, netCents: 0, nexezFeeCents: 0, aovCents: 0 }
+  if (prevBounds && previousReport) {
+    const prevExact = previousReport?.currencies.find((row) => row.currency === selectedCurrency)
+    const prevSel = prevExact
+      ? { gmvCents: prevExact.grossCents, netCents: prevExact.netCents, nexezFeeCents: prevExact.feeCents, aovCents: prevExact.aovCents }
+      : { gmvCents: 0, netCents: 0, nexezFeeCents: 0, aovCents: 0 }
     gmvDelta = pctDelta(sel.gmvCents, prevSel.gmvCents, periodLabel)
     netDelta = pctDelta(sel.netCents, prevSel.netCents, periodLabel)
     feeDelta = pctDelta(sel.nexezFeeCents, prevSel.nexezFeeCents, periodLabel)
@@ -209,8 +235,18 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
 
   // Trend window: a readable recent span keyed off the selected range.
   const seriesDays = range === '7d' || range === '1d' || range === 'today' ? 7 : 30
-  const trend = getDailyRevenueSeries(ordersInWindow, seriesDays, selectedCurrency)
-  const topOffers = getTopOffersByRevenueCents(ordersInWindow, selectedCurrency).slice(0, 6)
+  const trend = report
+    ? financeDailySeries(report, seriesDays, selectedCurrency)
+    : getDailyRevenueSeries(ordersInWindow, seriesDays, selectedCurrency)
+  const topOffers = report
+    ? report.topOffers.filter((offer) => offer.currency === selectedCurrency).slice(0, 6).map((offer) => ({
+        name: offer.offerName,
+        pageSlug: offer.slug,
+        offerKey: offer.offerKey,
+        revenueCents: offer.grossCents,
+        orders: offer.transactions,
+      }))
+    : getTopOffersByRevenueCents(ordersInWindow, selectedCurrency).slice(0, 6)
   const ledger = buildMarketplaceLedger(ordersInWindow, negInWindow, commissionPct, 25)
   const money = (cents: number) => formatCurrencyAmount(cents, selectedCurrency)
 
@@ -229,8 +265,24 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
   const hasNegWindow = negWindowSel.agreedCents > 0
   const hasEscrowActivity = negSel.heldCents > 0 || negSel.completeCents > 0 || negSel.reversedCents > 0
   // The two channels measure different money types - shown side by side, never summed.
-  const channelTotal = sel.gmvCents + negWindowSel.agreedCents
-  const directShare = channelTotal > 0 ? Math.round((sel.gmvCents / channelTotal) * 100) : 0
+  const selectedChannels = report?.channels.filter((row) => row.currency === selectedCurrency) ?? []
+  const settlementChannels = [
+    ...(selectedChannels.length
+      ? selectedChannels
+      : hasRevenue
+        ? [{ currency: selectedCurrency, channel: 'settled_orders', transactions: sel.orders, grossCents: sel.gmvCents, netCents: sel.netCents }]
+        : []),
+    ...(exactNegotiatedWindow?.capturedCents
+      ? [{
+          currency: selectedCurrency,
+          channel: 'negotiated',
+          transactions: exactNegotiatedWindow.deals,
+          grossCents: exactNegotiatedWindow.capturedCents,
+          netCents: exactNegotiatedWindow.netCents,
+        }]
+      : []),
+  ]
+  const settlementChannelTotal = settlementChannels.reduce((sum, row) => sum + row.grossCents, 0)
 
   return (
     <main className="min-h-screen bg-[#090b10] text-white">
@@ -330,6 +382,15 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
             <KpiTile label="Escrow held" value={money(heldSel)} sub="pending settlement" icon={<Lock className="size-4" />} tone="amber" />
           </div>
 
+          {report ? (
+            <section className="mt-4 grid gap-3 rounded-2xl border border-[var(--bd-10)] bg-[var(--ov-02)] p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <OperationalStat label="Buyer requests" value={report.operations.openRequests} href="#buyer-requests" />
+              <OperationalStat label="Open disputes" value={report.operations.disputedOrders + report.operations.disputedNegotiations} href="/dashboard/negotiations" tone="danger" />
+              <OperationalStat label="Held over 48h" value={report.operations.staleHeldNegotiations} href="/dashboard/negotiations" tone="attention" />
+              <OperationalStat label="Estimated economics" value={report.operations.estimatedEconomics} tone={report.operations.estimatedEconomics ? 'attention' : 'ready'} />
+            </section>
+          ) : null}
+
           {/* Where the money goes - GMV → commission + net (selected currency) */}
           {sel.gmvCents > 0 && (
             <GlassCard className="mt-6 p-6">
@@ -355,43 +416,27 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
             </GlassCard>
           )}
 
-          {/* Revenue by channel: direct checkout vs negotiated/escrow (same window) */}
-          {(hasRevenue || hasNegWindow) && (
-            <div className="mt-6 grid gap-6 lg:grid-cols-2">
-              <GlassCard className="p-6">
-                <h2 className="flex items-center gap-2 text-base font-semibold">
-                  <TrendingUp className="size-4 text-[var(--ready)]" /> Direct checkout
-                  <span className="text-xs font-normal text-zinc-500">· instant agent purchases</span>
-                </h2>
-                <p className="mt-3 text-3xl font-semibold tracking-tight">{money(sel.gmvCents)}</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {sel.orders} settled order{sel.orders === 1 ? '' : 's'} · {money(sel.netCents)} net
-                </p>
-              </GlassCard>
-              <GlassCard className="p-6">
-                <h2 className="flex items-center gap-2 text-base font-semibold">
-                  <Handshake className="size-4 text-[var(--signal)]" /> Negotiated deals
-                  <span className="text-xs font-normal text-zinc-500">· agent-to-agent escrow</span>
-                </h2>
-                <p className="mt-3 text-3xl font-semibold tracking-tight">{money(negWindowSel.agreedCents)}</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {negWindowSel.deals} Stripe-funded deal{negWindowSel.deals === 1 ? '' : 's'}
-                </p>
-              </GlassCard>
-              {channelTotal > 0 && (
-                <div className="lg:col-span-2">
-                  <div className="flex h-2.5 overflow-hidden rounded-full border border-[var(--bd-10)]">
-                    <div className="bg-[var(--ready)]" style={{ width: `${directShare}%` }} title={`Direct ${directShare}%`} />
-                    <div className="bg-[var(--signal)]" style={{ width: `${100 - directShare}%` }} title={`Negotiated ${100 - directShare}%`} />
-                  </div>
-                  <p className="mt-2 text-[11px] text-zinc-500">
-                    Channel mix by value ({selectedCurrency.toUpperCase()}): {directShare}% direct · {100 - directShare}% negotiated.
-                    Direct sales and funded escrow remain separate and are never presented as one cash balance.
-                  </p>
+          {/* Comparable captured sales by settlement channel. Uncaptured escrow stays below. */}
+          {settlementChannels.length ? (
+            <GlassCard className="mt-6 p-6">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h2 className="flex items-center gap-2 text-lg font-semibold"><Handshake className="size-4 text-[var(--signal)]" /> Settlement channels</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Captured transaction value by commerce rail · {selectedCurrency.toUpperCase()}</p>
                 </div>
-              )}
-            </div>
-          )}
+                <span className="text-xs text-zinc-500">Held escrow is excluded until capture</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {settlementChannels.map((row) => (
+                  <div key={row.channel} className="rounded-xl border border-[var(--bd-10)] bg-black/20 p-4">
+                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">{financeChannelLabel(row.channel)}</span><span className="text-xs text-zinc-500">{pct(row.grossCents, settlementChannelTotal)}%</span></div>
+                    <p className="mt-2 text-2xl font-semibold">{money(row.grossCents)}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{row.transactions} transaction{row.transactions === 1 ? '' : 's'} · {money(row.netCents)} net</p>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          ) : null}
 
           {/* Escrow lifecycle - where negotiated money sits right now (all-time balances) */}
           {hasEscrowActivity && (
@@ -635,6 +680,64 @@ export default async function FinancePage({ searchParams }: FinanceProps) {
   )
 }
 
+function financeDailySeries(report: FinanceRollup, days: number, currency: string) {
+  const values = new Map(
+    report.daily
+      .filter((row) => row.currency === currency)
+      .map((row) => [row.date, row]),
+  )
+  const now = new Date()
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - index - 1)))
+    const dateKey = date.toISOString().slice(0, 10)
+    const row = values.get(dateKey)
+    return {
+      label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+      dateKey,
+      revenueCents: row?.grossCents ?? 0,
+      orders: row?.transactions ?? 0,
+    }
+  })
+}
+
+function financeChannelLabel(channel: string) {
+  return ({
+    direct: 'Direct checkout',
+    agent_checkout: 'Direct checkout',
+    acp: 'ACP checkout',
+    ucp: 'UCP checkout',
+    agent_protocol: 'ACP / UCP',
+    recurring: 'Recurring service',
+    recurring_service: 'Recurring service',
+    staged: 'Staged settlement',
+    staged_settlement: 'Staged settlement',
+    reserved: 'Reserved resource',
+    reservable_resource: 'Reserved resource',
+    nexie: 'Nexie-assisted',
+    negotiated: 'Negotiated capture',
+    negotiated_order: 'Negotiated order',
+    settled_orders: 'Settled orders',
+  } as Record<string, string>)[channel] ?? channel.replace(/_/g, ' ')
+}
+
+function OperationalStat({
+  label,
+  value,
+  href,
+  tone = value ? 'attention' : 'ready',
+}: {
+  label: string
+  value: number
+  href?: string
+  tone?: 'ready' | 'attention' | 'danger'
+}) {
+  const color = tone === 'ready' ? 'text-[var(--ready)]' : tone === 'danger' ? 'text-red-300' : 'text-[var(--amber)]'
+  const content = <><span className={`text-xl font-semibold ${color}`}>{value}</span><span className="text-xs text-zinc-500">{label}</span></>
+  return href
+    ? <a href={href} className="flex min-h-[58px] items-center justify-between gap-3 rounded-xl border border-[var(--bd-10)] bg-black/20 px-4 transition hover:bg-[var(--ov-05)]">{content}</a>
+    : <div className="flex min-h-[58px] items-center justify-between gap-3 rounded-xl border border-[var(--bd-10)] bg-black/20 px-4">{content}</div>
+}
+
 function pct(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0
 }
@@ -747,11 +850,12 @@ function LedgerRow({ entry }: { entry: LedgerEntry }) {
       <td className="py-2.5 pr-3">
         {entry.channel === 'direct' ? (
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${entry.status === 'paid' || entry.status === 'dispute_won' ? 'bg-[var(--ready)]/15 text-[var(--ready)]' : 'bg-[var(--amber)]/15 text-[var(--amber)]'}`}>
-            {entry.status === 'paid' ? 'Direct' : `Direct ${entry.status?.replace('_', ' ') || ''}`}
+            {financeChannelLabel(entry.sourceChannel === 'agent_checkout' || !entry.sourceChannel ? 'direct' : entry.sourceChannel)}
+            {entry.status === 'paid' ? '' : ` · ${entry.status?.replace('_', ' ') || ''}`}
           </span>
         ) : (
-          <span className={`rounded-full px-2 py-0.5 text-[11px] ${LEDGER_TONE[getNegotiationStatusTone((entry.status ?? 'negotiation') as NegotiationStatus)]}`}>
-            {entry.status ? getNegotiationStatusLabel(entry.status as NegotiationStatus) : 'Negotiated'}
+          <span className={`rounded-full px-2 py-0.5 text-[11px] ${entry.status === 'partial_refund' ? LEDGER_TONE.open : LEDGER_TONE[getNegotiationStatusTone((entry.status ?? 'negotiation') as NegotiationStatus)]}`}>
+            {entry.status === 'partial_refund' ? 'Partial refund' : entry.status ? getNegotiationStatusLabel(entry.status as NegotiationStatus) : 'Negotiated'}
           </span>
         )}
       </td>

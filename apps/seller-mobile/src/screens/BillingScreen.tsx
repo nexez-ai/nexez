@@ -38,10 +38,11 @@ export function BillingScreen() {
       <SectionTitle title="Fees & revenue" />
       <Card>
         <FeeRow label="Transaction fee" value={`${data.commissionPercent}% + Stripe`} />
-        <FeeRow label="Agent revenue" value={formatCurrency(data.agentRevenueCents)} />
-        <FeeRow label="Platform fees" value={formatCurrency(data.platformFeesCents)} />
+        <FeeRow label="Settled sales · 30d" value={formatCurrency(data.agentRevenueCents, data.financeCurrency)} />
+        <FeeRow label="Nexez fees · 30d" value={formatCurrency(data.platformFeesCents, data.financeCurrency)} />
       </Card>
 
+      <AppButton label="Finance & payouts" icon={CreditCard} variant="secondary" onPress={() => router.push('/tools/finance')} />
       <AppButton label="Manage billing on web" icon={ExternalLink} onPress={() => void WebBrowser.openBrowserAsync(webPath('/dashboard/billing'))} />
       <AppButton label="Compare plans" icon={CreditCard} variant="secondary" onPress={() => void WebBrowser.openBrowserAsync(webPath('/pricing'))} />
     </Screen>

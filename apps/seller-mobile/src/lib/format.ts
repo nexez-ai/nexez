@@ -17,16 +17,38 @@ export function formatDateTime(value?: string | null) {
   })
 }
 
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'bif',
+  'clp',
+  'djf',
+  'gnf',
+  'jpy',
+  'kmf',
+  'krw',
+  'mga',
+  'pyg',
+  'rwf',
+  'ugx',
+  'vnd',
+  'vuv',
+  'xaf',
+  'xof',
+  'xpf',
+])
+
 export function formatCurrency(cents?: number | null, currency = 'usd') {
   if (cents == null || Number.isNaN(cents)) return 'Open'
+  const normalizedCurrency = currency.toLowerCase()
+  const zeroDecimal = ZERO_DECIMAL_CURRENCIES.has(normalizedCurrency)
+  const amount = cents / (zeroDecimal ? 1 : 100)
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
-      currency: currency.toUpperCase(),
-      maximumFractionDigits: 2,
-    }).format(cents / 100)
+      currency: normalizedCurrency.toUpperCase(),
+      maximumFractionDigits: zeroDecimal ? 0 : 2,
+    }).format(amount)
   } catch {
-    return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+    return `${amount.toFixed(zeroDecimal ? 0 : 2)} ${normalizedCurrency.toUpperCase()}`
   }
 }
 

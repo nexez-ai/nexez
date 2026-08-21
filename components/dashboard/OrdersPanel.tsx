@@ -90,10 +90,10 @@ export function OrdersPanel({ orders }: { orders: OrderRow[] }) {
 
   return (
     <section className="nx-rise mt-8">
-      <h2 className="text-lg font-semibold">Direct orders</h2>
+      <h2 className="text-lg font-semibold">Settled orders</h2>
       <p className="mt-1 text-sm text-zinc-500">
-        Checkout sales (not negotiated). A refund returns the buyer&rsquo;s money and gives Nexez&rsquo;s commission back too - in
-        full, or a partial amount with the rest still refundable.
+        Stripe-confirmed checkout, protocol, recurring, staged, and reserved-resource transactions. A refund returns the
+        buyer&rsquo;s money and gives Nexez&rsquo;s commission back too—in full, or partially with the rest still refundable.
       </p>
       {error ? <p className="mt-2 text-sm text-red-300">{error}</p> : null}
       <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
@@ -112,7 +112,7 @@ export function OrdersPanel({ orders }: { orders: OrderRow[] }) {
               const refunded = o.refunded_cents || 0
               const partiallyRefunded = o.status === 'paid' && refunded > 0
               return (
-                <tr key={o.id} className="border-b border-white/5 last:border-0">
+                <tr id={`order-${o.id}`} key={o.id} className="scroll-mt-6 border-b border-white/5 last:border-0">
                   <td className="px-4 py-3">
                     <span className="text-zinc-200">{o.offer_name || 'Offer'}</span>
                     {o.slug ? <span className="ml-2 text-xs text-zinc-500">/{o.slug}</span> : null}

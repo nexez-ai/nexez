@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { commissionPercentForPlan } from './billing'
 import {
   BASIC_OWNER_PAGE_SELECT,
   OWNER_PAGE_SELECT,
@@ -16,6 +17,7 @@ import type {
   BuyerRequest,
   CheckoutEvent,
   CheckoutOrder,
+  FinanceRollup,
   OrderReview,
   SellerOverview,
 } from '@/src/types/nexez'
@@ -139,6 +141,19 @@ export async function getAnalyticsRollup(from: Date): Promise<AnalyticsRollup> {
   return data as AnalyticsRollup
 }
 
+export async function getFinanceRollup(from?: Date | null, fallbackCommissionBps = 0): Promise<FinanceRollup> {
+  const { data, error } = await supabase.rpc('nz_owner_finance_rollup', {
+    p_from: from?.toISOString() ?? null,
+    p_to: null,
+    p_fallback_commission_bps: Math.max(0, Math.min(1000, Math.round(fallbackCommissionBps))),
+  })
+  if (error) throw error
+  if (!data || typeof data !== 'object' || Number((data as { schemaVersion?: unknown }).schemaVersion) !== 1) {
+    throw new Error('Finance totals are not available yet.')
+  }
+  return data as FinanceRollup
+}
+
 export async function getNegotiations(userId: string, limit = 100): Promise<AgentNegotiation[]> {
   const { data, error } = await supabase
     .from('agent_negotiations')
@@ -182,7 +197,7 @@ export async function getNegotiationMessages(negotiationId: string): Promise<Neg
 export async function getOrders(userId: string, limit = 100): Promise<CheckoutOrder[]> {
   const { data, error } = await supabase
     .from('checkout_orders')
-    .select('id, owner_id, page_id, slug, offer_name, offer_key, amount_cents, currency, status, refunded_cents, buyer_email, buyer_name, buyer_reference, created_at')
+    .select('id, owner_id, page_id, slug, offer_name, offer_key, amount_cents, currency, status, channel, stripe_livemode, refunded_cents, buyer_email, buyer_name, buyer_reference, created_at')
     .eq('owner_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -244,7 +259,8 @@ export async function getBillingSubscription(userId: string): Promise<BillingSub
 }
 
 export async function getOverviewMetrics(userId: string): Promise<SellerOverview> {
-  const [pages, visits, events, negotiations, orders, reviews, negotiationReport] = await Promise.all([
+  const financeFrom = new Date(Date.now() - 30 * 86400000)
+  const [pages, visits, events, negotiations, orders, reviews, negotiationReport, financeReport] = await Promise.all([
     getSellerPages(userId),
     getAgentVisits(userId, 1000),
     getCheckoutEvents(userId, 150),
@@ -257,6 +273,11 @@ export async function getOverviewMetrics(userId: string): Promise<SellerOverview
       p_page_id: null,
       p_query: null,
     }),
+    getBillingSubscription(userId).then((billing) => supabase.rpc('nz_owner_finance_rollup', {
+      p_from: financeFrom.toISOString(),
+      p_to: null,
+      p_fallback_commission_bps: Math.round(commissionPercentForPlan(billing?.plan_id) * 100),
+    })),
   ])
 
   const agentVisits = visits.filter((visit) => visit.is_ai_agent).length
@@ -291,12 +312,31 @@ export async function getOverviewMetrics(userId: string): Promise<SellerOverview
     createdAt: review.created_at,
   }))
 
-  // Money hero: 30d pipeline from conversion events, payouts from paid orders,
-  // and a 10-day agent-visit sparkline - all from real seller signals.
-  const pipelineCents = events
-    .filter((event) => event.event_type === 'stripe_session_created' && event.metadata?.dry_run !== true)
-    .reduce((sum, event) => sum + (Number(event.metadata?.amount_cents) || 0), 0)
-  const payoutsCents = orders.filter((order) => order.status === 'paid').reduce((sum, order) => sum + (order.amount_cents || 0), 0)
+  // Money hero: exact, settled 30-day finance in one currency. Fall back to the
+  // dominant live order currency during additive migration rollout.
+  const finance = financeReport.data && typeof financeReport.data === 'object'
+    && Number((financeReport.data as { schemaVersion?: unknown }).schemaVersion) === 1
+    ? financeReport.data as FinanceRollup
+    : null
+  const exactCurrency = finance?.currencies[0]
+  const fallbackByCurrency = new Map<string, { gross: number; net: number }>()
+  for (const order of orders) {
+    if (order.stripe_livemode !== true || !['paid', 'refunded', 'disputed', 'dispute_won'].includes(order.status)) continue
+    const code = (order.currency || 'usd').toLowerCase()
+    const current = fallbackByCurrency.get(code) ?? { gross: 0, net: 0 }
+    const refunded = order.status === 'disputed'
+      ? order.amount_cents
+      : order.status === 'refunded' && !order.refunded_cents
+        ? order.amount_cents
+        : Math.min(order.amount_cents, Math.max(0, order.refunded_cents || 0))
+    current.gross += order.amount_cents
+    current.net += Math.max(0, order.amount_cents - refunded)
+    fallbackByCurrency.set(code, current)
+  }
+  const fallbackCurrency = [...fallbackByCurrency.entries()].sort((a, b) => b[1].gross - a[1].gross)[0]
+  const financeCurrency = exactCurrency?.currency ?? fallbackCurrency?.[0] ?? 'usd'
+  const pipelineCents = exactCurrency?.grossCents ?? fallbackCurrency?.[1].gross ?? 0
+  const payoutsCents = exactCurrency?.netCents ?? fallbackCurrency?.[1].net ?? 0
   const DAY = 86400000
   const nowMs = Date.now()
   const spark = Array.from({ length: 10 }, (_, i) => {
@@ -322,6 +362,7 @@ export async function getOverviewMetrics(userId: string): Promise<SellerOverview
       .slice(0, 8),
     pipelineCents,
     payoutsCents,
+    financeCurrency,
     spark,
   }
 }

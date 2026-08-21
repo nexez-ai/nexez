@@ -209,6 +209,45 @@ export type AnalyticsRollup = {
   activePageIds: string[]
 }
 
+export type FinanceRollup = {
+  schemaVersion: 1
+  currencies: Array<{
+    currency: string
+    transactions: number
+    grossCents: number
+    retainedGrossCents: number
+    refundCents: number
+    disputeCents: number
+    outflowCents: number
+    feeCents: number
+    netCents: number
+    aovCents: number
+    partialRefunds: number
+    snapshotTransactions: number
+    estimatedTransactions: number
+  }>
+  channels: Array<{ currency: string; channel: string; transactions: number; grossCents: number; netCents: number }>
+  daily: Array<{ currency: string; date: string; transactions: number; grossCents: number; outflowCents: number; netCents: number }>
+  topOffers: Array<{ currency: string; pageId: string | null; slug: string; offerKey: string; offerName: string; transactions: number; grossCents: number; netCents: number }>
+  escrow: Array<{
+    currency: string
+    deals: number
+    fundedCents: number
+    heldCents: number
+    capturedCents: number
+    refundCents: number
+    disputeCents: number
+    outflowCents: number
+    feeCents: number
+    netCents: number
+    partialRefunds: number
+    snapshotDeals: number
+    estimatedDeals: number
+  }>
+  negotiatedWindow: Array<{ currency: string; deals: number; fundedCents: number; heldCents: number; capturedCents: number; outflowCents: number; netCents: number }>
+  operations: { openRequests: number; disputedOrders: number; disputedNegotiations: number; heldNegotiations: number; staleHeldNegotiations: number; estimatedEconomics: number }
+}
+
 export type OrderReview = {
   id: string
   order_kind: 'checkout' | 'negotiation'
@@ -277,6 +316,7 @@ export type SellerOverview = {
   recentActivity: ActivityItem[]
   pipelineCents: number
   payoutsCents: number
+  financeCurrency: string
   spark: number[]
 }
 

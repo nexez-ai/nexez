@@ -1,5 +1,6 @@
-import { getBillingSubscription, getCheckoutEvents, getSellerPages } from '@/src/lib/data'
+import { getBillingSubscription, getFinanceRollup, getSellerPages } from '@/src/lib/data'
 import { getOfferCount } from '@/src/lib/agent-page'
+import { commissionPercentForPlan } from '@/src/lib/billing'
 import { useAsyncData } from './useAsyncData'
 import { useSession } from './useSession'
 
@@ -7,19 +8,18 @@ export function useBilling() {
   const { user } = useSession()
   return useAsyncData(async () => {
     if (!user) throw new Error('Sign in required.')
-    const [billing, pages, events] = await Promise.all([
-      getBillingSubscription(user.id),
-      getSellerPages(user.id),
-      getCheckoutEvents(user.id, 500),
-    ])
+    const billing = await getBillingSubscription(user.id)
     const planId = billing?.plan_id ?? 'free'
-    const agentRevenueCents = events
-      .filter((event) => event.event_type === 'stripe_session_created' && event.metadata?.dry_run !== true)
-      .reduce((sum, event) => {
-        const raw = event.metadata?.amount_cents
-        return sum + (typeof raw === 'number' ? raw : Number(raw || 0))
-      }, 0)
-    const commissionPercent = billing?.commission_percent ?? 15
+    const commissionPercent = commissionPercentForPlan(planId)
+    const [pages, finance] = await Promise.all([
+      getSellerPages(user.id),
+      getFinanceRollup(
+        new Date(Date.now() - 30 * 86400000),
+        Math.round(commissionPercent * 100),
+      ),
+    ])
+    const primaryCurrency = finance.currencies[0]
+    const agentRevenueCents = primaryCurrency?.grossCents ?? 0
 
     return {
       billing,
@@ -29,8 +29,9 @@ export function useBilling() {
       publishedCount: pages.filter((page) => page.is_published).length,
       offerCount: pages.reduce((sum, page) => sum + getOfferCount(page), 0),
       agentRevenueCents,
+      financeCurrency: primaryCurrency?.currency ?? 'usd',
       commissionPercent,
-      platformFeesCents: Math.round(agentRevenueCents * (commissionPercent / 100)),
+      platformFeesCents: primaryCurrency?.feeCents ?? 0,
     }
   }, [user?.id])
 }

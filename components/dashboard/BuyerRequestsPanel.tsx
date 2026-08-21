@@ -6,6 +6,7 @@ import { Loader2, MessageSquareWarning, RotateCcw } from 'lucide-react'
 export type BuyerRequestRow = {
   id: string
   order_kind: 'checkout' | 'negotiation'
+  order_id: string
   kind: 'refund_request' | 'problem_report'
   status: string
   message: string | null
@@ -34,7 +35,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 /** Buyer-filed refund requests / problem reports (from the order portal). The seller
- *  refunds from the Direct-orders panel; here they triage the request itself. */
+ *  refunds from the matching order/deal workflow; here they triage the request itself. */
 export function BuyerRequestsPanel({ requests }: { requests: BuyerRequestRow[] }) {
   const [rows, setRows] = useState(requests)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -65,13 +66,13 @@ export function BuyerRequestsPanel({ requests }: { requests: BuyerRequestRow[] }
   }
 
   return (
-    <section className="nx-rise mt-8">
+    <section id="buyer-requests" className="nx-rise mt-8 scroll-mt-6">
       <h2 className="flex items-center gap-2 text-lg font-semibold">
         <MessageSquareWarning className="size-4 text-[var(--amber)]" /> Buyer requests
       </h2>
       <p className="mt-1 text-sm text-[var(--fg-muted-2)]">
-        Refund requests and problem reports buyers filed from their order page. Refund from the Direct orders table below;
-        use these to track and respond.
+        Refund requests and problem reports buyers filed from their order page. Open the linked order or negotiated deal
+        before resolving the request so the payment action and recourse record stay aligned.
       </p>
       {error ? <p className="mt-2 text-sm text-red-300">{error}</p> : null}
       <div className="mt-4 space-y-3">
@@ -96,6 +97,12 @@ export function BuyerRequestsPanel({ requests }: { requests: BuyerRequestRow[] }
               {r.message ? <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--fg-muted)]">{r.message}</p> : null}
               {!closed ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <a
+                    href={r.order_kind === 'negotiation' ? `/dashboard/negotiations#negotiation-${r.order_id}` : `#order-${r.order_id}`}
+                    className="inline-flex items-center rounded-lg border border-[var(--signal)]/30 bg-[var(--signal)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--signal)] hover:bg-[var(--signal)]/20"
+                  >
+                    Review {r.order_kind === 'negotiation' ? 'deal' : 'order'}
+                  </a>
                   {r.status === 'open' ? (
                     <button
                       type="button"
