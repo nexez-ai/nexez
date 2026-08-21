@@ -167,6 +167,16 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get('host') || ''
   const abBucket = ensureAbBucket(request)
 
+  // The Shopify connector now lives outside the paid dashboard shell. Redirect
+  // the legacy URL before session middleware can send reviewers through the
+  // dashboard auth/onboarding flow. Strip stale callback query parameters too.
+  if (isPlatformHost(host, SITE_URL) && request.nextUrl.pathname === '/dashboard/shopify') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/shopify/link'
+    url.search = ''
+    return persistAbBucket(NextResponse.redirect(url, 308), abBucket)
+  }
+
   // A custom (non-platform) host that maps to a verified, published page gets
   // rewritten to that page so the brand domain serves the agent-optimized page.
   if (!isPlatformHost(host, SITE_URL)) {

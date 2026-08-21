@@ -92,6 +92,24 @@ describe('proxy: malformed artifact paths', () => {
   })
 })
 
+describe('proxy: legacy Shopify linking route', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    supabaseRef.respond = rows([])
+  })
+
+  it('redirects to the free connector before dashboard auth', async () => {
+    const res = await proxy(
+      request('https://app.nexez.ai/dashboard/shopify?error=stale', 'app.nexez.ai'),
+    )
+
+    expect(res.status).toBe(308)
+    expect(res.headers.get('location')).toBe('https://app.nexez.ai/shopify/link')
+    expect(updateSession).not.toHaveBeenCalled()
+    expect(createServerClient).not.toHaveBeenCalled()
+  })
+})
+
 // A Supabase blip (observed: TypeError: fetch failed / ECONNRESET) used to
 // produce an empty path map that was then cached for the full 60s TTL. Every
 // custom-domain request on that edge instance served nothing for a minute, with
