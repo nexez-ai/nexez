@@ -6,6 +6,7 @@ import { eventsCurationCandidates } from './events'
 import { homeCurationCandidates } from './home'
 import { personalCurationCandidates } from './personal'
 import { professionalCurationCandidates } from './professional'
+import { commerceReferenceCoverageCandidates } from './reference-coverage'
 import {
   COMMERCE_CURATION_VERSION,
   type CommerceCurationCandidate,
@@ -28,6 +29,17 @@ export const commerceCurationCandidates: CommerceCurationCandidate[] = [
   ...professionalCurationCandidates,
   ...educationPetCurationCandidates,
   ...commercialCurationCandidates,
+]
+
+/**
+ * Buyer-facing reference coverage used by the public simulator. The canonical
+ * 63-candidate corpus remains stable for architecture analyses; additive
+ * records here only prevent understood requests from being routed to an
+ * unrelated reference scenario while marketplace supply is still growing.
+ */
+export const commerceReferenceCandidates: CommerceCurationCandidate[] = [
+  ...commerceCurationCandidates,
+  ...commerceReferenceCoverageCandidates,
 ]
 
 export function commerceCurationSelectionScore(candidate: CommerceCurationCandidate): number {

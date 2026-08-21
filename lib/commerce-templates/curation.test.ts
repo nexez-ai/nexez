@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   commerceCurationCandidates,
   commerceCurationSelectionScore,
+  commerceReferenceCandidates,
   listCommerceCurationCandidates,
   summarizeCommerceCuration,
 } from './curation'
@@ -41,6 +42,19 @@ describe('commerce 63-candidate curation inventory', () => {
       Array.from({ length: 63 }, (_, index) => index + 1),
     )
     expect(ids(commerceCurationCandidates).size).toBe(63)
+  })
+
+  it('adds launch coverage without changing the canonical 63-candidate corpus', () => {
+    expect(commerceReferenceCandidates).toHaveLength(64)
+    expect(ids(commerceReferenceCandidates).size).toBe(64)
+    expect(commerceReferenceCandidates.slice(0, 63)).toEqual(commerceCurationCandidates)
+    expect(commerceReferenceCandidates.at(-1)).toMatchObject({
+      ordinal: 64,
+      id: 'events.custom-celebration-cake',
+      title: 'Custom Celebration Cake',
+      status: 'retain',
+    })
+    expect(getLatestCommerceTemplate('events.custom-celebration-cake')).toBeNull()
   })
 
   it('scores every candidate on exactly ten integer dimensions from 1 through 5', () => {

@@ -24,6 +24,13 @@ export type CommerceCurationScores = {
   operationalDistinctiveness: number
 }
 
+export type CommerceSimulationHints = {
+  /** Explicit service nouns or aliases that may establish category identity. */
+  identityTerms: string[]
+  /** Buyer inputs a reference simulation should ask a real merchant to confirm. */
+  buyerDetails: string[]
+}
+
 export type CommerceCurationCandidate = {
   ordinal: number
   id: string
@@ -35,6 +42,7 @@ export type CommerceCurationCandidate = {
   capabilityTags: CommerceCapability[]
   gapSignals: CommerceCurationGapSignal[]
   scores: CommerceCurationScores
+  simulationHints?: CommerceSimulationHints
 }
 
 export function score(
@@ -50,6 +58,19 @@ export function candidate(
   ordinal: number, id: string, title: string, domain: CommerceDomain, primaryArchetype: CommerceArchetype,
   status: CommerceCurationStatus, teaches: string, capabilityTags: CommerceCapability[],
   gapSignals: CommerceCurationGapSignal[], scores: CommerceCurationScores,
+  simulationHints?: CommerceSimulationHints,
 ): CommerceCurationCandidate {
-  return { ordinal, id, title, domain, primaryArchetype, status, teaches, capabilityTags, gapSignals, scores }
+  return {
+    ordinal,
+    id,
+    title,
+    domain,
+    primaryArchetype,
+    status,
+    teaches,
+    capabilityTags,
+    gapSignals,
+    scores,
+    ...(simulationHints ? { simulationHints } : {}),
+  }
 }

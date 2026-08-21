@@ -280,6 +280,35 @@ describe('POST /api/public-simulate', () => {
     expect(JSON.stringify(body)).not.toMatch(/home\.move-out-cleaning|capabilityTags|gapSignals|matchedTerms|matchScore|schemaVersion/)
   })
 
+  it('understands a custom wedding-cake request without redirecting it to videography', async () => {
+    dbRef.handler = (ctx: any) =>
+      ctx.table === 'pages_public'
+        ? { data: [consultingPage], error: null }
+        : { data: null, error: null }
+
+    const res = await POST(post({
+      query: 'find me a baker for a 7ft tall wedding cake in austin this weekend',
+    }))
+    expect(res.status).toBe(200)
+
+    const body = await res.json()
+    expect(body.mode).toBe('simulation')
+    expect(body.matchedBusiness).toBeNull()
+    expect(body.simulation).toMatchObject({
+      source: 'commerce-library',
+      title: 'Custom Celebration Cake',
+      detailsToConfirm: expect.arrayContaining([
+        'serving count',
+        'cake height and tier structure',
+        'flavor and dietary requirements',
+      ]),
+    })
+    expect(body.naturalLanguage).toContain('Custom Celebration Cake')
+    expect(body.naturalLanguage).toContain('cake height and tier structure')
+    expect(body.agentActions.join(' ')).toContain('delivery window')
+    expect(JSON.stringify(body)).not.toMatch(/Wedding Videography|events\.custom-celebration-cake|identityTerms|buyerDetails/)
+  })
+
   it('rejects technical or Markdown-heavy LLM output and uses composed buyer guidance', async () => {
     llmRef.configured = true
     llmRef.response = '**Nexez models the buyer request via the provisional "events.private-chef" reference scenario.** The archetype and capabilityTags include QUOTE_REQUIRED, MOBILE, SERVICE_AREA, UNIT_PRICING, CAPACITY_LIMITED, CUSTOM_INTAKE, and DEPOSIT. The matchedTerms produce a matchScore of 7.'

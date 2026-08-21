@@ -141,6 +141,16 @@ A simple baseline can still be valuable. Barber Appointment is intentionally ret
 
 The machine-readable files are authoritative for scores, tags, and gap signals; this table is a review surface.
 
+## Launch coverage extensions
+
+The canonical 63 records above remain the stable evidence corpus for capability counts, schema-gap analysis, and architecture autopsies. The public simulator may use an additive reference-coverage layer for buyer categories that are not yet represented in that corpus. This layer exists to preserve an understood service category while marketplace supply is thin; it does **not** activate a Commerce Template or establish a merchant, price, inventory, availability, service area, or booking path.
+
+| # | Reference coverage | Semantic ID | Archetype | Buyer identity aliases |
+|---:|---|---|---|---|
+| 64 | Custom Celebration Cake | `events.custom-celebration-cake` | quote-required | cake, cakes, baker, bakery, patisserie |
+
+Reference coverage records live separately from `commerceCurationCandidates` and are composed into `commerceReferenceCandidates` only for deterministic, explicitly labelled simulations. Promotion into the canonical architecture corpus or active runtime registry requires its own review.
+
 ## Measured capability hypotheses
 
 These counts are calculated from the 63 curation records. They describe **how many candidate scenarios appear to exercise a capability**, not production feature completeness.

@@ -7,7 +7,7 @@ import {
 } from '@/lib/agent-simulator'
 import { AgentPage, PUBLIC_PAGE_SELECT, getRequestBaseUrl } from '@/lib/agent-page'
 import { searchAgentPages, type AgentSearchResult } from '@/lib/agent-search'
-import { commerceCurationCandidates } from '@/lib/commerce-templates/curation'
+import { commerceReferenceCandidates } from '@/lib/commerce-templates/curation'
 import {
   commerceIdentityTokenFamily,
   findCommerceSimulationMatch,
@@ -245,7 +245,7 @@ function offersForBuyer(
 }
 
 function simulationPayload(query: string) {
-  const match = findCommerceSimulationMatch(query, commerceCurationCandidates)
+  const match = findCommerceSimulationMatch(query, commerceReferenceCandidates)
   if (!match) return null
 
   const { candidate, score, matchedTerms, matchedIdentityTerms } = match
@@ -264,6 +264,7 @@ function simulationPayload(query: string) {
       teaches: candidate.teaches,
       capabilityTags: candidate.capabilityTags,
       gapSignals: candidate.gapSignals,
+      buyerDetails: candidate.simulationHints?.buyerDetails ?? [],
       matchedTerms,
       matchedIdentityTerms,
       matchScore: score,
@@ -306,6 +307,8 @@ function simulationGuidance(simulation: SimulationPayload): SimulationGuidance {
     seen.add(semanticKey)
     details.push(detail)
   }
+
+  for (const detail of simulation.candidate.buyerDetails) addDetail(detail)
 
   if (template?.schedulingModes.length) addDetail('preferred date and time')
   for (const detail of template?.offerBlueprints.flatMap((offer) => offer.commonConfiguration ?? []) ?? []) {

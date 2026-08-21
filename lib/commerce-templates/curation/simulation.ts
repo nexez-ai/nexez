@@ -51,8 +51,19 @@ function tokenFamilies(value: string): string[] {
   return [...new Set(tokens(value).map(commerceIdentityTokenFamily))]
 }
 
+const NON_IDENTITY_TITLE_TOKEN_FAMILIES = new Set(
+  [...NON_IDENTITY_TITLE_TERMS].map(commerceIdentityTokenFamily),
+)
+
 function identityTitleTokens(value: string): Set<string> {
-  return new Set(tokenFamilies(value).filter((token) => !NON_IDENTITY_TITLE_TERMS.has(token)))
+  return new Set(tokenFamilies(value).filter((token) => !NON_IDENTITY_TITLE_TOKEN_FAMILIES.has(token)))
+}
+
+function candidateIdentityTokens(candidate: CommerceCurationCandidate): Set<string> {
+  return new Set([
+    ...identityTitleTokens(candidate.title),
+    ...candidate.simulationHints?.identityTerms.flatMap(tokenFamilies) ?? [],
+  ])
 }
 
 export type CommerceSimulationMatch = {
@@ -78,8 +89,11 @@ export function findCommerceSimulationMatch(
   const ranked = candidates
     .map((candidate) => {
       const titleText = normalize(candidate.title)
-      const titleTokens = new Set(tokenFamilies(candidate.title))
-      const identityTokens = identityTitleTokens(candidate.title)
+      const serviceTokens = new Set([
+        ...tokenFamilies(candidate.title),
+        ...candidate.simulationHints?.identityTerms.flatMap(tokenFamilies) ?? [],
+      ])
+      const identityTokens = candidateIdentityTokens(candidate)
       const teachesTokens = new Set(tokenFamilies(candidate.teaches))
       const metadataTokens = new Set(tokenFamilies([
         candidate.domain,
@@ -95,7 +109,7 @@ export function findCommerceSimulationMatch(
       const matchedTerms: string[] = []
 
       for (const token of queryTokens) {
-        if (titleTokens.has(token)) {
+        if (serviceTokens.has(token)) {
           score += 6
           matchedTerms.push(token)
         } else if (teachesTokens.has(token)) {
