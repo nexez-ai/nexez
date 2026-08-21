@@ -31,6 +31,7 @@ the response to the live `nexez.app/<slug>/<artifact>` resource.
 | Route | Host | Purpose |
 | --- | --- | --- |
 | `GET /shopify` | app.nexez.ai | Embedded, cookie-independent App Bridge home |
+| `GET /shopify/link` | app.nexez.ai | Free, top-level account/listing link flow isolated from Nexez billing UI |
 | `POST /api/shopify/session` | app.nexez.ai | Verify Shopify ID token, exchange/refresh offline credentials, load shop state |
 | `POST /api/shopify/session/sync` | app.nexez.ai | Exact-shop catalog refresh authenticated by the Shopify session |
 | `GET /api/shopify/claim` | app.nexez.ai | Consume a one-time token and continue top-level Nexez account linking |
@@ -93,8 +94,11 @@ reauthorization.
 The Shopify-installed connector is free: account linking, initial import, manual
 sync, webhook reconciliation, theme discovery links, and the signed storefront
 proxy do not depend on a Nexez subscription. This avoids off-platform billing for
-the public app's Shopify functionality. Manually supplied Shopify credentials are
-part of Nexez's separate integrations product and are not used by this app.
+the public app's Shopify functionality. Shopify OAuth callbacks and sign-in return
+to `/shopify/link`, which deliberately sits outside the general Nexez dashboard,
+plan onboarding, Billing navigation, and Stripe subscription surfaces. Manually
+supplied Shopify credentials are part of Nexez's separate integrations product
+and are not installed, linked, or used by this app.
 
 Before App Store submission, confirm whether Shopify classifies Nexez's external
 agent-discovery distribution as a Sales Channel. That classification is separate

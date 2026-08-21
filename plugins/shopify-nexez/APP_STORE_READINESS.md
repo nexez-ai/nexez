@@ -1,6 +1,6 @@
 # Shopify App Store readiness
 
-Last reviewed against Shopify's public requirements: 2026-07-13.
+Last reviewed against Shopify's public requirements: 2026-08-20.
 
 ## Code-backed requirements
 
@@ -59,6 +59,26 @@ and the full Sales Channel review checklist.
 
 The embedded Shopify app does not present off-platform pricing or withhold its
 Shopify functionality behind a Nexez subscription.
+
+#### 2026-08-20 core-review remediation (requirement 1.2.1)
+
+Shopify paused review under requirement 1.2.1 after the account-link journey
+entered the general Nexez dashboard, where unrelated Stripe subscription and
+upgrade surfaces were reachable. The connector remains free; the remediation is
+to keep the complete App Store journey outside those surfaces.
+
+- [x] Move the listing picker from `/dashboard/shopify` to the standalone
+  `/shopify/link` route, outside the paid dashboard shell.
+- [x] Send OAuth callbacks, one-time claims, relinks, and expired-link recovery
+  through `/shopify/link`.
+- [x] Let Shopify-origin sign-in and account creation return directly to the
+  free connector instead of mandatory Nexez plan onboarding.
+- [x] Remove Pricing, Start Free, and other paid-plan links from the
+  Shopify-origin authentication screen.
+- [x] State that the manual Admin API token importer is a separate Nexez platform
+  tool and is not installed or used by the App Store connector.
+- [ ] Deploy the server remediation and verify the fresh-install reviewer flow.
+- [ ] Re-run Shopify's automated checks and submit the requirement fixes.
 
 ### 3. Checkout boundary
 

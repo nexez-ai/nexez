@@ -30,7 +30,7 @@ describe('GET /api/shopify/claim', () => {
     const response = await GET(new Request('https://app.nexez.ai/api/shopify/claim?token=opaque-token'))
 
     expect(response.status).toBe(302)
-    expect(response.headers.get('location')).toContain('/login?next=/dashboard/shopify')
+    expect(response.headers.get('location')).toContain('/login?next=/shopify/link')
     expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(consumeShopifyLinkToken).toHaveBeenCalledWith(expect.anything(), 'opaque-token')
     expect(jar.set).toHaveBeenCalledWith('shopify_pending_shop', 'signed:demo.myshopify.com', expect.objectContaining({ httpOnly: true }))

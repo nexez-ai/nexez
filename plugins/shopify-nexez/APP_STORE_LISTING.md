@@ -1,12 +1,15 @@
 # Nexez Agent-Ready: App Store listing
 
-Prepared against Shopify's public App Store guidance on 2026-07-13.
+Prepared against Shopify's public App Store guidance on 2026-08-20.
 
 ## Submission status
 
-Do not submit until Shopify confirms whether Nexez must use the Sales Channel
-model. Nexez publishes Shopify products to an external agent-discovery network,
-which closely matches Shopify's marketplace and product-feed definitions.
+Shopify paused review under requirement 1.2.1 on 2026-08-20 after the account-link
+journey exposed Nexez's unrelated off-platform subscription UI. The App Store
+connector remains free; resubmit after the isolated `/shopify/link` remediation
+is deployed and the automated checks have been rerun. Sales Channel classification
+remains a separate follow-up risk because Nexez publishes Shopify products to an
+external agent-discovery network.
 
 References:
 

@@ -65,6 +65,14 @@ describe('GET /auth/callback plan routing', () => {
     expect(response.headers.get('location')).toBe('https://app.nexez.test/dashboard')
   })
 
+  it('keeps a plan-less Shopify install out of paid-plan onboarding', async () => {
+    const response = await GET(callback('/shopify/link'))
+
+    expect(response.headers.get('location')).toBe('https://app.nexez.test/shopify/link')
+    expect(trial.hasBilling).not.toHaveBeenCalled()
+    expect(trial.ensure).not.toHaveBeenCalled()
+  })
+
   it('treats invalid and Enterprise metadata as no self-serve plan choice', async () => {
     for (const plan of ['made-up', 'enterprise']) {
       refs.user.user_metadata = { plan }

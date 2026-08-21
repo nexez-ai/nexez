@@ -6,7 +6,9 @@ import { gateIntegrationImport, importShopifyOffers } from '../../../../../lib/s
 /**
  * Shopify Integration for Nexez — authenticated Admin API catalog import.
  * The domain-pinning fetch + parse lives in lib/server/integration-importers
- * (shared with the interview's /ingest); this route is auth + Pro gate + shaping.
+ * (shared with the interview's /ingest). This manual-token integration is a
+ * separate Nexez platform tool; it is not installed, linked, or used by the
+ * free Shopify App Store connector.
  */
 type ShopifyImportRequest = {
   shop: string           // e.g. "yourstore.myshopify.com"
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
     supabase,
     user,
     pageId: body.pageId,
-    proMessage: 'Connecting Shopify is a Pro feature. Upgrade to import your catalog, or add offers manually / upload a CSV (free).',
+    proMessage: 'Manual Admin API token imports are a Nexez Pro platform tool. The separate Nexez Agent-Ready app is installed and managed free from Shopify admin.',
   })
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status })
 

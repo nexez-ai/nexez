@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const shop = await consumeShopifyLinkToken(createAdminClient(), token)
   if (!shop) {
     const expired = NextResponse.redirect(
-      appUrl('/login?next=/dashboard/shopify&error=shopify_link_expired'),
+      appUrl('/login?next=/shopify/link&error=shopify_link_expired'),
       302,
     )
     expired.headers.set('cache-control', 'no-store')
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   } catch {
     /* continue to sign in */
   }
-  const destination = signedIn ? '/dashboard/shopify' : '/login?next=/dashboard/shopify'
+  const destination = signedIn ? '/shopify/link' : '/login?next=/shopify/link'
   const response = NextResponse.redirect(appUrl(destination), 302)
   response.headers.set('cache-control', 'no-store')
   response.headers.set('referrer-policy', 'no-referrer')

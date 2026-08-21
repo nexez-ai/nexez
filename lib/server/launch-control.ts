@@ -461,7 +461,7 @@ function buildIncidents(sources: OperationalSources, nowIso: string): LaunchInci
       detail: `${row.shop_domain}: ${cleanText(row.catalog_sync_error || 'Reconnect Shopify to resume sync.')}`,
       occurredAt: row.updated_at,
       status: 'blocked',
-      href: '/dashboard/shopify',
+      href: '/shopify/link',
     })
   }
   for (const row of sources.outboundWebhooks.rows.filter((item) => item.active && isFailedDelivery(item.last_status)).slice(0, 4)) {

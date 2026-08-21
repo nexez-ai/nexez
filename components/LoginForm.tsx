@@ -15,6 +15,7 @@ import { NexezLogo } from './NexezLogo'
 import { safeNextPath } from '../lib/safe-redirect'
 import { createClient } from '../utils/supabase/client'
 import { INDUSTRIES } from '../lib/industries'
+import { isShopifyLinkPath, SHOPIFY_LINK_PATH } from '../lib/shopify-link-flow'
 
 export type LoginMode = 'signin' | 'signup' | 'reset'
 
@@ -99,7 +100,11 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
   const [messageTone, setMessageTone] = useState<'error' | 'info'>('info')
 
   const strength = useMemo(() => scorePassword(password), [password])
+  const shopifyLinking = isShopifyLinkPath(safeNextPath(nextPath, ''))
   const onboardingHref = nextPath ? `/onboard?next=${encodeURIComponent(nextPath)}` : '/onboard'
+  const signupHref = shopifyLinking
+    ? `/login?mode=signup&next=${encodeURIComponent(SHOPIFY_LINK_PATH)}`
+    : onboardingHref
 
   useEffect(() => {
     setHydrated(true)
@@ -196,15 +201,18 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (error) return setError(error.message)
       } else {
+        const callback = new URL('/auth/callback', window.location.origin)
+        if (shopifyLinking) callback.searchParams.set('next', SHOPIFY_LINK_PATH)
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: callback.toString(),
             data: {
               full_name: fullName.trim(),
               company: company.trim(),
               industry: industry || null,
+              signup_source: shopifyLinking ? 'shopify' : undefined,
             },
           },
         })
@@ -244,12 +252,20 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
   }
 
   const title =
-    mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create your Nexez workspace' : 'Reset your password'
+    mode === 'signin'
+      ? shopifyLinking ? 'Connect your Shopify store' : 'Welcome back'
+      : mode === 'signup'
+        ? shopifyLinking ? 'Create your free connector account' : 'Create your Nexez workspace'
+        : 'Reset your password'
   const subtitle =
     mode === 'signin'
-      ? 'Sign in to continue managing your agent-ready business layer.'
+      ? shopifyLinking
+        ? 'Sign in to choose the listing that receives your Shopify catalog. The connector has no app charge.'
+        : 'Sign in to continue managing your agent-ready business layer.'
       : mode === 'signup'
-        ? 'Launch a structured presence AI agents can understand, recommend, and act on.'
+        ? shopifyLinking
+          ? 'Create an account to link, sync, and publish your Shopify catalog for agent discovery at no app charge.'
+          : 'Launch a structured presence AI agents can understand, recommend, and act on.'
         : 'Enter your email and we will send a secure reset link.'
 
   return (
@@ -264,14 +280,19 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
             <span>Nexez</span>
           </a>
           <nav className="nx-auth-nav" aria-label="Login links">
-            <a href="/pricing" className="nx-auth-link">
-              Pricing
-            </a>
-            <a href="/simulator" className="nx-auth-link">
-              Simulator
-            </a>
-            <a href={mode === 'signin' ? onboardingHref : modeHref('signin')} className="nx-auth-secondary">
-              {mode === 'signin' ? 'Start Free' : 'Sign in'}
+            {shopifyLinking ? (
+              <>
+                <a href="https://nexez.ai/privacy" className="nx-auth-link">Privacy</a>
+                <a href="https://nexez.ai/support" className="nx-auth-link">Support</a>
+              </>
+            ) : (
+              <>
+                <a href="/pricing" className="nx-auth-link">Pricing</a>
+                <a href="/simulator" className="nx-auth-link">Simulator</a>
+              </>
+            )}
+            <a href={mode === 'signin' ? signupHref : modeHref('signin')} className="nx-auth-secondary">
+              {mode === 'signin' ? shopifyLinking ? 'Create account' : 'Start Free' : 'Sign in'}
             </a>
           </nav>
         </header>
@@ -283,7 +304,9 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
             <div className="nx-auth-copy-content">
               <h1 className="nx-auth-title">Manage the layer AI buyers can act on.</h1>
               <p className="nx-auth-copy">
-                Update listings, review simulations, track agent traffic, and manage buyer actions from one focused workspace.
+                {shopifyLinking
+                  ? 'Connect one Shopify store to a Nexez listing, keep its product catalog synchronized, and preserve Shopify storefront checkout.'
+                  : 'Update listings, review simulations, track agent traffic, and manage buyer actions from one focused workspace.'}
               </p>
             </div>
           </section>
@@ -305,8 +328,12 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
                     >
                       Sign in
                     </a>
-                    <a href={onboardingHref} aria-current={mode === 'signup' ? 'true' : undefined}>
-                      Start Free
+                    <a
+                      href={signupHref}
+                      onClick={shopifyLinking ? handleModeLink('signup') : undefined}
+                      aria-current={mode === 'signup' ? 'true' : undefined}
+                    >
+                      {shopifyLinking ? 'Create account' : 'Start Free'}
                     </a>
                   </div>
                 ) : null}

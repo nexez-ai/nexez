@@ -5,6 +5,7 @@ import { safeNextPath } from '../../../lib/safe-redirect'
 import { sendOnceSystemEmail } from '../../../lib/server/system-email'
 import { buildWelcomeEmail } from '../../../lib/email'
 import { ensureBillingSeeded, hasBillingAccount, isSelectablePlan } from '../../../lib/server/trial'
+import { isShopifyLinkPath } from '../../../lib/shopify-link-flow'
 
 // A user counts as "new" (gets the welcome) only if their account was created very
 // recently - so an existing user signing in again never gets a backfill blast, and
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code')
   // Guard against open redirect: only allow a same-origin relative path.
   const next = safeNextPath(requestUrl.searchParams.get('next'))
+  const shopifyLinking = isShopifyLinkPath(next)
 
   // OAuth provider error / consent-cancel: Google -> Supabase forwards `error`
   // (e.g. access_denied) with NO code. Without this, we'd silently redirect an
@@ -57,7 +59,7 @@ export async function GET(request: Request) {
       await ensureBillingSeeded(user.id, planMeta)
     }
 
-    if (isNew && user?.email) {
+    if (isNew && user?.email && !shopifyLinking) {
       const createUrl = new URL('/create', requestUrl.origin).toString()
       const name = (user.user_metadata?.full_name as string | undefined) || (user.user_metadata?.name as string | undefined) || null
       const to = user.email
@@ -71,7 +73,7 @@ export async function GET(request: Request) {
     // to pick one, not to a silently-seeded default trial. This is intentionally not
     // limited to the welcome window: a user may abandon OAuth and return days later.
     // Existing billing state remains the source of truth and passes through to `next`.
-    if (user && !chosePlan && !(await hasBillingAccount(user.id))) {
+    if (user && !shopifyLinking && !chosePlan && !(await hasBillingAccount(user.id))) {
       const onboardUrl = new URL('/onboard', requestUrl.origin)
       if (next && next !== '/') onboardUrl.searchParams.set('next', next)
       return NextResponse.redirect(onboardUrl)

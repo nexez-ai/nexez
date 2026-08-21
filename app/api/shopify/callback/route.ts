@@ -114,7 +114,8 @@ export async function GET(request: Request) {
   }
   jar.delete('shopify_oauth_state')
   // Signed proof that THIS browser just installed THIS shop → authorizes the
-  // shop→listing link on /dashboard/shopify (a client can't forge it).
+  // shop→listing link on the isolated /shopify/link surface (a client can't
+  // forge it and the free connector never enters Nexez billing UI).
   jar.set('shopify_pending_shop', signPendingShop(shop), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -122,6 +123,6 @@ export async function GET(request: Request) {
     path: '/',
     maxAge: 3600,
   })
-  const dest = ownerId ? '/dashboard/shopify' : '/login?next=/dashboard/shopify'
+  const dest = ownerId ? '/shopify/link' : '/login?next=/shopify/link'
   return NextResponse.redirect(appUrl(dest), 302)
 }

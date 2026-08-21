@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { LoginForm, LoginMode } from '../../components/LoginForm'
 import { createClient } from '../../utils/supabase/server'
 import { safeNextPath } from '../../lib/safe-redirect'
+import { isShopifyLinkPath } from '../../lib/shopify-link-flow'
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -23,6 +24,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams
   const initialMode = toLoginMode(firstValue(params?.mode))
   const nextPath = firstValue(params?.next)
+  const safeNext = safeNextPath(nextPath, '')
+  const shopifyLinking = isShopifyLinkPath(safeNext)
 
   // Already signed in? Don't show a login form. Shared .nexez.ai cookies let
   // nexez.ai and app.nexez.ai agree on auth state, while nexez.app stays focused
@@ -39,9 +42,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // Every new signup goes through onboarding so Free or a paid trial is an explicit
   // choice. A direct /login?mode=signup link (or LoginForm's "Create an account")
   // lands on /onboard, carrying any `next`.
-  if (initialMode === 'signup') {
-    const safe = safeNextPath(nextPath, '')
-    redirect(safe ? `/onboard?next=${encodeURIComponent(safe)}` : '/onboard')
+  if (initialMode === 'signup' && !shopifyLinking) {
+    redirect(safeNext ? `/onboard?next=${encodeURIComponent(safeNext)}` : '/onboard')
   }
 
   return <LoginForm initialMode={initialMode} nextPath={nextPath} />

@@ -76,7 +76,7 @@ describe('GET /api/shopify/callback', () => {
   it('requests rotating offline credentials and stores the complete token lifecycle', async () => {
     const response = await GET(request())
     expect(response.status).toBe(302)
-    expect(response.headers.get('location')).toBe('https://app.nexez.ai/dashboard/shopify')
+    expect(response.headers.get('location')).toBe('https://app.nexez.ai/shopify/link')
     const [, init] = vi.mocked(fetch).mock.calls[0]
     expect(init?.headers).toMatchObject({ 'content-type': 'application/x-www-form-urlencoded' })
     expect(String(init?.body)).toContain('expiring=1')
@@ -92,6 +92,15 @@ describe('GET /api/shopify/callback', () => {
       }),
     )
     expect(h.setCookie).toHaveBeenCalledWith('shopify_pending_shop', 'signed:demo.myshopify.com', expect.any(Object))
+  })
+
+  it('sends signed-out installs to the isolated Shopify login flow', async () => {
+    h.user = null
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('https://app.nexez.ai/login?next=/shopify/link')
   })
 
   it('rejects a non-rotating token response instead of persisting an unusable install', async () => {
