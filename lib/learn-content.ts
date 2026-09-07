@@ -83,8 +83,10 @@ import { perplexityAndClaudeShopping } from './learn-articles/perplexity-and-cla
 import { cloudflareSeptember15Crawlers } from './learn-articles/cloudflare-september-15-ai-crawlers'
 import { whenAiAgentsCallYourBusiness } from './learn-articles/when-ai-agents-call-your-business'
 import { reviewsRatingsAndAiAgents } from './learn-articles/reviews-ratings-and-ai-agents'
+import { pricingForAiAgents } from './learn-articles/pricing-for-ai-agents'
 
 export const learnArticles: LearnArticle[] = [
+  pricingForAiAgents,
   reviewsRatingsAndAiAgents,
   whenAiAgentsCallYourBusiness,
   cloudflareSeptember15Crawlers,
