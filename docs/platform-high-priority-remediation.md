@@ -38,7 +38,7 @@ The script refuses a nonlocal hostname, uses unique fixtures, and cleans up only
 3. Apply those migrations before merging the application. They add server-only operations and tighten existing authority. They do not replay historical webhooks automatically.
 4. Verify the new functions, table RLS, client revocations, and migration history in the target database, then merge and verify the production deployment revision.
 5. Release the mobile client update. Older clients without an operation ID fail closed on refunds and must update; browser clients must reload the deployed application.
-6. Ensure both platform and Connect Stripe endpoints deliver `charge.refunded` and the `refund.created`, `refund.updated`, and `refund.failed` lifecycle events. Refund updates allow a pending refund to be reconsidered when it settles. No endpoint settings are changed by this code.
+6. Ensure both platform and Connect Stripe endpoints deliver `charge.refunded` and the `refund.created`, `refund.updated`, and `refund.failed` lifecycle events. Refund updates allow a pending refund to be reconsidered when it settles. Launch Control verifies both endpoint roles, enabled state, and event coverage through Stripe's endpoint API. It reports only safe counts and missing event names. No endpoint settings are changed by this code.
 
 ## Recovery and limits
 

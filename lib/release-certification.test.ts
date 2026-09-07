@@ -50,6 +50,11 @@ function snapshot(overrides: Partial<LaunchControlSnapshot> = {}): LaunchControl
       stripeWebhookEvents: 0,
       latestStripeWebhookAt: null,
       stripeWebhookEndpointsEnabled: null,
+      stripeWebhookEndpointRolesCovered: null,
+      stripeWebhookRefundEventsCovered: null,
+      stripeWebhookEndpointCount: null,
+      stripeWebhookMissingEndpointRoles: [],
+      stripeWebhookMissingRefundEvents: [],
       stripePriceWebhookEvents: 0,
       stripePriceSyncEvents: 0,
       checkoutStripeErrors24h: 0,
@@ -128,7 +133,7 @@ function snapshot(overrides: Partial<LaunchControlSnapshot> = {}): LaunchControl
 }
 
 describe('machine launch health', () => {
-  it('returns only redacted required-check state', () => {
+  it('returns redacted required-check state and safe Stripe coverage metadata', () => {
     const health = buildMachineLaunchHealth(snapshot({
       supportQueue: [{
         id: 'ticket-private',
@@ -147,6 +152,14 @@ describe('machine launch health', () => {
     ])
     expect(JSON.stringify(health)).not.toContain('redacted evidence')
     expect(JSON.stringify(health)).not.toContain('Private seller support subject')
+    expect(health.stripeWebhookConfiguration).toEqual({
+      stripeWebhookEndpointsEnabled: null,
+      stripeWebhookEndpointRolesCovered: null,
+      stripeWebhookRefundEventsCovered: null,
+      stripeWebhookEndpointCount: null,
+      stripeWebhookMissingEndpointRoles: [],
+      stripeWebhookMissingRefundEvents: [],
+    })
   })
 
   it('identifies every required launch blocker', () => {

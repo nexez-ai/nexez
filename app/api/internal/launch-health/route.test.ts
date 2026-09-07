@@ -91,6 +91,14 @@ function launchSnapshot(status: 'ready' | 'attention'): LaunchControlSnapshot {
       blocked: 0,
       unknown: 0,
     },
+    metrics: {
+      stripeWebhookEndpointsEnabled: true,
+      stripeWebhookEndpointRolesCovered: true,
+      stripeWebhookRefundEventsCovered: true,
+      stripeWebhookEndpointCount: 2,
+      stripeWebhookMissingEndpointRoles: [],
+      stripeWebhookMissingRefundEvents: [],
+    },
     incidents: [],
   } as unknown as LaunchControlSnapshot
 }

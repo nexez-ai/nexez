@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { withRefundIntent } from './refund-intent'
+
 const storage = vi.hoisted(() => new Map<string, string>())
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   getItem: async (key: string) => storage.get(key) ?? null,
   setItem: async (key: string, value: string) => { storage.set(key, value) },
   removeItem: async (key: string) => { storage.delete(key) },
 } }))
-import { withRefundIntent } from './refund-intent'
 
 describe('mobile refund confirmation persistence', () => {
   beforeEach(() => storage.clear())

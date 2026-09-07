@@ -1,6 +1,7 @@
 import type {
   LaunchCheck,
   LaunchControlSnapshot,
+  LaunchMetrics,
   LaunchStatus,
   LaunchSummary,
 } from './launch-control'
@@ -70,6 +71,15 @@ export type MachineLaunchHealth = {
     status: LaunchStatus
   }>
   blockers: ReleaseLaunchFailure[]
+  stripeWebhookConfiguration: Pick<
+    LaunchMetrics,
+    | 'stripeWebhookEndpointsEnabled'
+    | 'stripeWebhookEndpointRolesCovered'
+    | 'stripeWebhookRefundEventsCovered'
+    | 'stripeWebhookEndpointCount'
+    | 'stripeWebhookMissingEndpointRoles'
+    | 'stripeWebhookMissingRefundEvents'
+  >
   incidentCount: number
 }
 
@@ -118,6 +128,14 @@ export function buildMachineLaunchHealth(
     blockers: requiredChecks
       .filter((check) => check.status !== 'ready')
       .map((check) => ({ ...check })),
+    stripeWebhookConfiguration: {
+      stripeWebhookEndpointsEnabled: snapshot.metrics.stripeWebhookEndpointsEnabled,
+      stripeWebhookEndpointRolesCovered: snapshot.metrics.stripeWebhookEndpointRolesCovered,
+      stripeWebhookRefundEventsCovered: snapshot.metrics.stripeWebhookRefundEventsCovered,
+      stripeWebhookEndpointCount: snapshot.metrics.stripeWebhookEndpointCount,
+      stripeWebhookMissingEndpointRoles: snapshot.metrics.stripeWebhookMissingEndpointRoles,
+      stripeWebhookMissingRefundEvents: snapshot.metrics.stripeWebhookMissingRefundEvents,
+    },
     incidentCount: snapshot.incidents.length,
   }
 }
