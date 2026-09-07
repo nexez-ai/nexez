@@ -1,16 +1,18 @@
-import { Redirect } from 'expo-router'
+import { Redirect, useLocalSearchParams } from 'expo-router'
 import { Lock, Mail, UserPlus } from 'lucide-react-native'
 import { useState } from 'react'
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native'
 import { AppButton, Card, Header, Screen, SegmentedControl, TextField } from '@/src/components/ui'
 import { useSession } from '@/src/hooks/useSession'
 import { isSupabaseConfigured } from '@/src/lib/supabase'
+import { authReturnPath } from '@/src/lib/auth-routing'
 import { colors } from '@/src/theme/colors'
 
 type LoginMode = 'signin' | 'signup' | 'reset'
 
 export function LoginScreen() {
   const { session, loading, signIn, signUp, resetPassword } = useSession()
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string | string[] }>()
   const [mode, setMode] = useState<LoginMode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,7 +21,7 @@ export function LoginScreen() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (!loading && session) return <Redirect href="/overview" />
+  if (!loading && session) return <Redirect href={authReturnPath(returnTo)} />
 
   async function submit() {
     setBusy(true)

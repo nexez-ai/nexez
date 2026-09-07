@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AuthGate } from '@/src/components/AuthGate'
+import { renderProtectedScreen } from '@/src/components/AuthGate'
 import { colors, shadows } from '@/src/theme/colors'
 
 const NAV: { name: string; icon: LucideIcon; label: string; dot?: boolean }[] = [
@@ -45,20 +45,19 @@ function FloatingNav({ state, navigation }: { state: { index: number; routes: { 
 
 export default function TabLayout() {
   return (
-    <AuthGate>
-      <Tabs
-        tabBar={(props) => <FloatingNav state={props.state} navigation={props.navigation} />}
-        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.background } }}
-      >
-        <Tabs.Screen name="overview" />
-        <Tabs.Screen name="listings" />
-        <Tabs.Screen name="inbox" />
-        <Tabs.Screen name="settings" />
-        {/* Registered but not in the floating nav - reached via Overview's CTA / Create circle. */}
-        <Tabs.Screen name="analytics" options={{ href: null }} />
-        <Tabs.Screen name="create" options={{ href: null }} />
-      </Tabs>
-    </AuthGate>
+    <Tabs
+      screenLayout={renderProtectedScreen}
+      tabBar={(props) => <FloatingNav state={props.state} navigation={props.navigation} />}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.background } }}
+    >
+      <Tabs.Screen name="overview" />
+      <Tabs.Screen name="listings" />
+      <Tabs.Screen name="inbox" />
+      <Tabs.Screen name="settings" />
+      {/* Registered but not in the floating nav - reached via Overview's CTA / Create circle. */}
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="create" options={{ href: null }} />
+    </Tabs>
   )
 }
 

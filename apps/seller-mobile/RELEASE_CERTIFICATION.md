@@ -50,11 +50,22 @@ The command validates release configuration and artwork, TypeScript, the mobile 
 Expo lint, SDK dependency compatibility, the static web bundle, mobile-platform contract parity,
 and the repository prose policy.
 
-Latest local result: pass. The distribution certificate completed with 19 mobile test files and
-158 tests, 7 platform-contract test files and 45 tests, a 40-route static web export, clean Expo
+Latest local result: pass. The distribution certificate completed with 21 mobile test files and
+214 tests, 7 platform-contract test files and 45 tests, a 40-route static web export, clean Expo
 lint, compatible Expo dependencies, and a clean repository prose check. Earlier platform
 verification also passed all 21 `expo-doctor` checks and found no lint errors in the linked
 `public` and `private` database schemas; those two checks were not repeated for this build slice.
+
+The authentication slice also passed a ten-route signed-out browser matrix against a local
+fixture. Order and existing-listing intake destinations survived sign-in, Settings survived
+logout, and an external return target fell back to Overview. Failed sign-in did not mount
+private content or issue private data requests. These checks use synthetic local authentication;
+they do not establish production authentication or physical-device behavior.
+
+Android prebuild emitted removal rules for overlay and legacy external-storage permissions.
+Verify their absence in the compiled candidate manifest before release. Notification permission
+remains supplied by the notifications dependency. Web exports clear the bundler cache so changed
+public environment values are compiled into the current artifact.
 
 ## Phase 6 build evidence
 
@@ -89,9 +100,10 @@ Local execution constraints for this pass:
 EAS allocates production build numbers remotely and requires a clean committed source tree.
 The local `ios.buildNumber` and `android.versionCode` values are development defaults; they are
 not the source of truth for store builds. Before the first build after switching to remote
-versioning, use `eas build:version:get --platform all --profile production --json` and initialize
-each platform with `eas build:version:set` to at least its last issued build number. The last
-issued Android production version was `2`; the last iOS simulator version was `1`.
+versioning, use `eas build:version:get --platform all --profile production --json` and compare
+the remote counters with the latest EAS build history. If initialization is needed, use
+`eas build:version:set` to set each platform to at least its last issued build number. Never
+reset an existing remote counter to the local development default.
 
 Build from an isolated clean checkout so unrelated untracked files are not uploaded. Run the
 automated certificate against that checkout, record its full Git SHA and tree hash, and keep

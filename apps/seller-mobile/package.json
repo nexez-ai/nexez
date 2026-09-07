@@ -55,7 +55,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "bundle:web": "expo export --platform web",
+    "bundle:web": "expo export --platform web --clear",
     "check:release-config": "node scripts/check-release-config.mjs",
     "certify:distribution": "npm run check:release-config && npm run typecheck && npm test && npm run lint && npm run check:expo-deps && npm run bundle:web && npm --prefix ../.. run check:mobile-platform-contracts && npm --prefix ../.. run lint:em-dash",
     "lint": "expo lint",
