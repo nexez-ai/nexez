@@ -82,8 +82,10 @@ import { googleAiModeVisibility } from './learn-articles/google-ai-mode-visibili
 import { perplexityAndClaudeShopping } from './learn-articles/perplexity-and-claude-shopping'
 import { cloudflareSeptember15Crawlers } from './learn-articles/cloudflare-september-15-ai-crawlers'
 import { whenAiAgentsCallYourBusiness } from './learn-articles/when-ai-agents-call-your-business'
+import { reviewsRatingsAndAiAgents } from './learn-articles/reviews-ratings-and-ai-agents'
 
 export const learnArticles: LearnArticle[] = [
+  reviewsRatingsAndAiAgents,
   whenAiAgentsCallYourBusiness,
   cloudflareSeptember15Crawlers,
   perplexityAndClaudeShopping,
