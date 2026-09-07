@@ -151,12 +151,39 @@ await check('negotiation dry-run auto-accepts seeded valid proposal', async () =
       query: 'Smoke test: buyer wants a one-week agent negotiation sprint.',
       budget: 'USD 2100',
       timeline: 'next week',
+      requestedTerms: {
+        scope: 'Discovery call',
+        revisionCount: 1,
+        projectWeeks: 1,
+      },
       dryRun: true,
     }),
   })
   assertEqual(json.ok, true, 'dry-run ok')
   assertEqual(json.dryRun, true, 'dryRun flag')
   assertEqual(json.rulesEvaluation?.decision, 'auto_accept', 'rules decision')
+})
+
+await check('negotiation dry-run requires review when configured terms are missing', async () => {
+  const json = await fetchJson(`${AGENT_BASE}/api/negotiations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({
+      slug: TEST_SLUG,
+      offer: TEST_OFFER,
+      buyerAgent: 'Nexez Agent Access Smoke',
+      query: 'Smoke test: incomplete proposal must remain subject to seller review.',
+      budget: 'USD 2100',
+      timeline: 'next week',
+      dryRun: true,
+    }),
+  })
+  assertEqual(json.ok, true, 'dry-run ok')
+  assertEqual(json.dryRun, true, 'dryRun flag')
+  assertEqual(json.rulesEvaluation?.decision, 'review', 'incomplete proposal decision')
+  for (const reason of ['scope_not_provided', 'revision_count_not_provided', 'project_length_not_provided']) {
+    assert(json.rulesEvaluation?.reasons?.includes(reason), `missing review reason: ${reason}`)
+  }
 })
 
 printSummary()
