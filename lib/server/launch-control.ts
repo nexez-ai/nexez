@@ -32,6 +32,11 @@ import {
   routeSupportQueue,
   type RoutedSupportTicket,
 } from '../support-routing'
+import {
+  evaluateStripeWebhookEndpointReadiness,
+  listStripeWebhookEndpoints,
+  type StripeWebhookEndpointReadiness,
+} from '../stripe-webhook-readiness'
 
 type Source<T> = { available: true; rows: T[] } | { available: false; rows: T[] }
 
@@ -143,7 +148,7 @@ const TERMINAL_NEGOTIATION_STATUSES = new Set(['complete', 'refunded'])
 
 export async function getLaunchControlSnapshot(): Promise<LaunchControlSnapshot> {
   const generatedAt = new Date().toISOString()
-  const [configurationInput, marketplaceCuration, stripeWebhookEndpointsEnabled] = await Promise.all([
+  const [configurationInput, marketplaceCuration, stripeWebhookReadiness] = await Promise.all([
     getConfigurationInput(),
     getMarketplaceCurationQueue(),
     verifyStripeWebhookEndpoints(),
@@ -154,7 +159,7 @@ export async function getLaunchControlSnapshot(): Promise<LaunchControlSnapshot>
     ? await loadOperationalSources(generatedAt)
     : emptySources()
   const availability = sourceAvailability(sources)
-  const metrics = buildMetrics(sources, generatedAt, stripeWebhookEndpointsEnabled)
+  const metrics = buildMetrics(sources, generatedAt, stripeWebhookReadiness)
   const operations = [
     ...buildOperationalChecks(metrics, availability, generatedAt),
     buildMarketplaceCurationCheck(marketplaceCuration),
@@ -285,30 +290,25 @@ const STRIPE_WEBHOOK_PATH = '/api/webhooks/stripe'
  * app's webhook endpoints are enabled. Powers the idle-aware stripe-delivery
  * check - a quiet account with verified-enabled endpoints stays 'ready', and an
  * endpoint Stripe reports DISABLED blocks certification even with zero traffic.
- * Returns:
- *   true  - at least one matching endpoint, all matching are 'enabled'
- *   false - at least one matching endpoint is disabled
- *   null  - unverifiable (no key, API unreachable, or no matching endpoints:
- *           v2 event destinations may not appear in the classic list - treated
- *           as unverifiable, never as failed)
+ * Missing endpoints remain unverifiable because Stripe v2 event destinations
+ * may not appear in the classic list. Any classic destination found for the
+ * canonical hosts is evaluated for role, enabled state, and refund events.
  */
 async function verifyStripeWebhookEndpoints(
   secretKey = process.env.STRIPE_SECRET_KEY || '',
-): Promise<boolean | null> {
+): Promise<StripeWebhookEndpointReadiness | null> {
   if (!secretKey) return null
   try {
-    const response = await fetch('https://api.stripe.com/v1/webhook_endpoints?limit=100', {
-      headers: { Authorization: `Bearer ${secretKey}` },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5_000),
+    const endpoints = await listStripeWebhookEndpoints(secretKey)
+    if (!endpoints) return null
+    return evaluateStripeWebhookEndpointReadiness(endpoints, {
+      allowedHosts: [APP_HOST, AGENT_RUNTIME_HOST],
+      expectedRoles: {
+        account: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+        connectedAccount: Boolean(process.env.STRIPE_WEBHOOK_SECRET_CONNECT),
+      },
+      webhookPath: STRIPE_WEBHOOK_PATH,
     })
-    if (!response.ok) return null
-    const body = await response.json() as { data?: Array<{ url?: string; status?: string }> }
-    const matching = (body.data ?? []).filter(
-      (endpoint) => typeof endpoint.url === 'string' && endpoint.url.includes(STRIPE_WEBHOOK_PATH),
-    )
-    if (matching.length === 0) return null
-    return matching.every((endpoint) => endpoint.status === 'enabled')
   } catch {
     return null
   }
@@ -554,7 +554,7 @@ function sourceAvailability(sources: OperationalSources): LaunchSourceAvailabili
 function buildMetrics(
   sources: OperationalSources,
   nowIso: string,
-  stripeWebhookEndpointsEnabled: boolean | null,
+  stripeWebhookReadiness: StripeWebhookEndpointReadiness | null,
 ): LaunchMetrics {
   const now = Date.parse(nowIso)
   const staleNegotiationBefore = now - 10 * 60_000
@@ -591,7 +591,12 @@ function buildMetrics(
   return {
     stripeWebhookEvents: stripeWebhooks.length,
     latestStripeWebhookAt: stripeWebhooks[0]?.received_at ?? null,
-    stripeWebhookEndpointsEnabled,
+    stripeWebhookEndpointsEnabled: stripeWebhookReadiness?.endpointsEnabled ?? null,
+    stripeWebhookEndpointRolesCovered: stripeWebhookReadiness?.endpointRolesCovered ?? null,
+    stripeWebhookRefundEventsCovered: stripeWebhookReadiness?.refundEventsCovered ?? null,
+    stripeWebhookEndpointCount: stripeWebhookReadiness?.matchingEndpointCount ?? null,
+    stripeWebhookMissingEndpointRoles: stripeWebhookReadiness?.missingEndpointRoles ?? [],
+    stripeWebhookMissingRefundEvents: stripeWebhookReadiness?.missingRefundEvents ?? [],
     stripePriceWebhookEvents: stripeWebhooks.filter((row) => isStripeCatalogSyncEvent(row.type)).length,
     stripePriceSyncEvents: checkoutEvents.filter((row) => row.event_type === 'stripe_price_sync').length,
     checkoutStripeErrors24h: checkoutEvents.filter((row) => row.event_type === 'stripe_error').length,

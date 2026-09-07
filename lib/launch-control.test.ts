@@ -92,7 +92,12 @@ function metrics(overrides: Partial<LaunchMetrics> = {}): LaunchMetrics {
   return {
     stripeWebhookEvents: 12,
     latestStripeWebhookAt: '2026-07-15T11:30:00.000Z',
-    stripeWebhookEndpointsEnabled: null,
+    stripeWebhookEndpointsEnabled: true,
+    stripeWebhookEndpointRolesCovered: true,
+    stripeWebhookRefundEventsCovered: true,
+    stripeWebhookEndpointCount: 2,
+    stripeWebhookMissingEndpointRoles: [],
+    stripeWebhookMissingRefundEvents: [],
     stripePriceWebhookEvents: 1,
     stripePriceSyncEvents: 1,
     checkoutStripeErrors24h: 0,

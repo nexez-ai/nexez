@@ -67,6 +67,14 @@ export type LaunchMetrics = {
    * visible to the classic endpoint list). This is the delivery-health signal
    * that does not depend on organic traffic - a quiet account stays provable. */
   stripeWebhookEndpointsEnabled: boolean | null
+  /** True only when Stripe exposes both account and connected-account webhook
+   * destinations expected by the configured signing-secret roles. */
+  stripeWebhookEndpointRolesCovered: boolean | null
+  /** True only when every matching endpoint receives all refund recovery events. */
+  stripeWebhookRefundEventsCovered: boolean | null
+  stripeWebhookEndpointCount: number | null
+  stripeWebhookMissingEndpointRoles: string[]
+  stripeWebhookMissingRefundEvents: string[]
   stripePriceWebhookEvents: number
   stripePriceSyncEvents: number
   checkoutStripeErrors24h: number
@@ -621,28 +629,30 @@ export function buildOperationalChecks(
   sources: LaunchSourceAvailability,
   nowIso: string,
 ): LaunchCheck[] {
-  const webhookAgeHours = ageHours(metrics.latestStripeWebhookAt, nowIso)
   const endpointsEnabled = metrics.stripeWebhookEndpointsEnabled
-  // Delivery health, not traffic recency. A quiet account produces zero webhooks
-  // legitimately (this failed certification for a healthy-but-idle week), so
-  // silence alone never fails the check. What DOES fail it is a verified broken
-  // pipe: Stripe reporting the app endpoint disabled. Recency still confers
-  // ready directly (organic or dashboard test events both count); an idle ledger
-  // stays ready as long as the endpoints verify enabled, and degrades to
-  // attention only when idle AND unverifiable.
+  const endpointRolesCovered = metrics.stripeWebhookEndpointRolesCovered
+  const refundEventsCovered = metrics.stripeWebhookRefundEventsCovered
+  const endpointConfigurationBroken = [
+    endpointsEnabled,
+    endpointRolesCovered,
+    refundEventsCovered,
+  ].some((value) => value === false)
+  const endpointConfigurationVerified = [
+    endpointsEnabled,
+    endpointRolesCovered,
+    refundEventsCovered,
+  ].every((value) => value === true)
+  // Delivery health includes the Stripe-side configuration that makes refund
+  // recovery possible. Traffic recency cannot prove an omitted event type.
+  // A quiet account remains ready when both endpoint roles are enabled and every
+  // matching destination subscribes to the required refund events.
   const webhookStatus: LaunchStatus = !sources.stripeWebhooks
     ? 'unknown'
-    : endpointsEnabled === false
+    : endpointConfigurationBroken
       ? 'blocked'
-      : metrics.stripeWebhookEvents === 0 || webhookAgeHours == null
-        ? endpointsEnabled === true
-          ? 'ready'
-          : 'attention'
-        : webhookAgeHours <= 72
-          ? 'ready'
-          : endpointsEnabled === true
-            ? 'ready'
-            : 'attention'
+      : endpointConfigurationVerified
+        ? 'ready'
+        : 'attention'
 
   const workerStatus: LaunchStatus = !sources.negotiations
     ? 'unknown'
@@ -672,19 +682,23 @@ export function buildOperationalChecks(
     {
       id: 'stripe-delivery',
       label: 'Stripe event delivery',
-      detail: 'Delivery health is proven by the idempotency ledger when events flow, and by Stripe-verified endpoint status when the account is idle.',
+      detail: 'Delivery health requires Stripe-verified account and connected-account endpoints with refund recovery event coverage.',
       evidence: !sources.stripeWebhooks
         ? 'Stripe event ledger is unavailable.'
         : endpointsEnabled === false
-          ? 'Stripe reports a webhook endpoint for this app as DISABLED.'
-          : metrics.latestStripeWebhookAt
-            ? `${metrics.stripeWebhookEvents} recorded events; latest ${relativeAge(metrics.latestStripeWebhookAt, nowIso)}${webhookAgeHours != null && webhookAgeHours > 72 ? endpointsEnabled === true ? ' (idle; endpoints verified enabled)' : ' (idle; endpoint status unverified)' : ''}.`
-            : endpointsEnabled === true
-              ? 'No events recorded yet; Stripe verifies the webhook endpoints as enabled.'
-              : 'No Stripe events are recorded and endpoint status could not be verified.',
+          ? `Stripe reports a disabled webhook destination among ${metrics.stripeWebhookEndpointCount ?? 0} matching endpoints.`
+          : endpointRolesCovered === false
+            ? `Stripe is missing the expected ${metrics.stripeWebhookMissingEndpointRoles.join(' and ')} webhook destination.`
+            : refundEventsCovered === false
+              ? `Stripe webhook destinations omit required events: ${metrics.stripeWebhookMissingRefundEvents.join(', ')}.`
+              : endpointConfigurationVerified
+                ? `${metrics.stripeWebhookEndpointCount} matching endpoints are enabled with account, connected-account, and refund event coverage${metrics.latestStripeWebhookAt ? `; ${metrics.stripeWebhookEvents} recorded events, latest ${relativeAge(metrics.latestStripeWebhookAt, nowIso)}` : '; no events recorded yet'}.`
+                : metrics.latestStripeWebhookAt
+                  ? `${metrics.stripeWebhookEvents} recorded events; latest ${relativeAge(metrics.latestStripeWebhookAt, nowIso)}, but full endpoint role and refund event coverage could not be verified.`
+                  : 'No Stripe events are recorded and full endpoint role and refund event coverage could not be verified.',
       status: webhookStatus,
       required: true,
-      action: 'Inspect Stripe endpoint deliveries and the production webhook signing secrets, or send a dashboard test event to prove the pipe.',
+      action: 'Configure separate account and connected-account destinations for this route, enable every required refund event on both, and verify their signing secrets.',
     },
     {
       id: 'checkout-errors',

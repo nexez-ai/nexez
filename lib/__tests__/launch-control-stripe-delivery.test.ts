@@ -8,6 +8,11 @@ const baseMetrics: LaunchMetrics = {
   stripeWebhookEvents: 0,
   latestStripeWebhookAt: null,
   stripeWebhookEndpointsEnabled: null,
+  stripeWebhookEndpointRolesCovered: null,
+  stripeWebhookRefundEventsCovered: null,
+  stripeWebhookEndpointCount: null,
+  stripeWebhookMissingEndpointRoles: [],
+  stripeWebhookMissingRefundEvents: [],
   stripePriceWebhookEvents: 0,
   stripePriceSyncEvents: 0,
   checkoutStripeErrors24h: 0,
@@ -88,7 +93,7 @@ function stripeDelivery(overrides: Partial<LaunchMetrics>, sources: LaunchSource
   return check
 }
 
-describe('stripe-delivery launch check (idle-aware)', () => {
+describe('stripe-delivery launch check', () => {
   it('is unknown when the ledger source is unavailable', () => {
     const check = stripeDelivery({}, { ...allSources, stripeWebhooks: false })
     expect(check.status).toBe('unknown')
@@ -97,33 +102,38 @@ describe('stripe-delivery launch check (idle-aware)', () => {
   it('BLOCKS when Stripe reports an endpoint disabled, regardless of ledger recency', () => {
     const fresh = stripeDelivery({
       stripeWebhookEndpointsEnabled: false,
+      stripeWebhookEndpointCount: 2,
       stripeWebhookEvents: 50,
       latestStripeWebhookAt: hoursAgo(1),
     })
     expect(fresh.status).toBe('blocked')
-    expect(fresh.evidence).toMatch(/DISABLED/)
+    expect(fresh.evidence).toMatch(/disabled webhook destination among 2 matching endpoints/)
   })
 
-  it('is ready on recent events even when endpoint status is unverifiable', () => {
+  it('does not treat recent unrelated traffic as proof of refund event coverage', () => {
     const check = stripeDelivery({
       stripeWebhookEvents: 12,
       latestStripeWebhookAt: hoursAgo(2),
       stripeWebhookEndpointsEnabled: null,
     })
-    expect(check.status).toBe('ready')
+    expect(check.status).toBe('attention')
+    expect(check.evidence).toMatch(/could not be verified/)
   })
 
-  it('stays ready on an IDLE ledger when Stripe verifies the endpoints enabled (the quiet-account fix)', () => {
+  it('stays ready on an idle ledger when Stripe verifies both roles and refund events', () => {
     const check = stripeDelivery({
       stripeWebhookEvents: 71,
       latestStripeWebhookAt: hoursAgo(10 * 24), // 10 days silent - the real production incident shape
       stripeWebhookEndpointsEnabled: true,
+      stripeWebhookEndpointRolesCovered: true,
+      stripeWebhookRefundEventsCovered: true,
+      stripeWebhookEndpointCount: 2,
     })
     expect(check.status).toBe('ready')
-    expect(check.evidence).toMatch(/idle; endpoints verified enabled/)
+    expect(check.evidence).toMatch(/2 matching endpoints are enabled/)
   })
 
-  it('degrades to attention when idle AND unverifiable, never to blocked', () => {
+  it('degrades to attention when endpoint coverage is unverifiable', () => {
     const check = stripeDelivery({
       stripeWebhookEvents: 71,
       latestStripeWebhookAt: hoursAgo(10 * 24),
@@ -132,9 +142,40 @@ describe('stripe-delivery launch check (idle-aware)', () => {
     expect(check.status).toBe('attention')
   })
 
-  it('treats a zero-event ledger as ready when endpoints verify enabled, attention otherwise', () => {
-    expect(stripeDelivery({ stripeWebhookEvents: 0, stripeWebhookEndpointsEnabled: true }).status).toBe('ready')
+  it('requires endpoint roles and refund events even when endpoints report enabled', () => {
+    expect(stripeDelivery({ stripeWebhookEvents: 0, stripeWebhookEndpointsEnabled: true }).status).toBe('attention')
+    expect(stripeDelivery({
+      stripeWebhookEvents: 0,
+      stripeWebhookEndpointsEnabled: true,
+      stripeWebhookEndpointRolesCovered: true,
+      stripeWebhookRefundEventsCovered: true,
+      stripeWebhookEndpointCount: 2,
+    }).status).toBe('ready')
     expect(stripeDelivery({ stripeWebhookEvents: 0, stripeWebhookEndpointsEnabled: null }).status).toBe('attention')
+  })
+
+  it('blocks a missing connected-account destination', () => {
+    const check = stripeDelivery({
+      stripeWebhookEndpointsEnabled: true,
+      stripeWebhookEndpointRolesCovered: false,
+      stripeWebhookRefundEventsCovered: true,
+      stripeWebhookEndpointCount: 1,
+      stripeWebhookMissingEndpointRoles: ['connected-account'],
+    })
+    expect(check.status).toBe('blocked')
+    expect(check.evidence).toMatch(/connected-account/)
+  })
+
+  it('blocks any required refund event omitted by a destination', () => {
+    const check = stripeDelivery({
+      stripeWebhookEndpointsEnabled: true,
+      stripeWebhookEndpointRolesCovered: true,
+      stripeWebhookRefundEventsCovered: false,
+      stripeWebhookEndpointCount: 2,
+      stripeWebhookMissingRefundEvents: ['refund.failed'],
+    })
+    expect(check.status).toBe('blocked')
+    expect(check.evidence).toMatch(/refund\.failed/)
   })
 })
 

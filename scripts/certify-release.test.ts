@@ -76,7 +76,7 @@ describe('release certification runner', () => {
   it('fails when requester support APIs permit anonymous access', async () => {
     const server = createServer(async (request, response) => {
       const body = await readBody(request)
-      route(request, response, body, () => {}, 200)
+      route(request, response, body, () => {}, { supportApiStatus: 200 })
     })
     server.listen(0, '127.0.0.1')
     await once(server, 'listening')
@@ -113,20 +113,91 @@ describe('release certification runner', () => {
     expect(report).toMatchObject({ status: 'failed', promotionEligible: false })
     expect(report.checks).toContainEqual(expect.objectContaining({ id: 'support-privacy', status: 'fail', required: true }))
   }, 15_000)
+
+  it('reports safe Stripe configuration detail when delivery readiness blocks release', async () => {
+    const server = createServer(async (request, response) => {
+      const body = await readBody(request)
+      route(request, response, body, () => {}, {
+        launchHealth: {
+          ok: false,
+          service: 'nexez-launch-control',
+          deployment: {
+            revision: SHA,
+            deploymentId: 'dpl_test',
+            deploymentUrl: 'https://nexez-test.vercel.app',
+            environment: 'production',
+          },
+          summary: { status: 'blocked', score: 95 },
+          blockers: [{ id: 'stripe-delivery', status: 'blocked' }],
+          stripeWebhookConfiguration: {
+            stripeWebhookEndpointsEnabled: true,
+            stripeWebhookEndpointRolesCovered: false,
+            stripeWebhookRefundEventsCovered: false,
+            stripeWebhookEndpointCount: 1,
+            stripeWebhookMissingEndpointRoles: ['connected-account'],
+            stripeWebhookMissingRefundEvents: ['refund.failed'],
+          },
+        },
+      })
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    closeServer = async () => { server.close(); await once(server, 'close') }
+
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('Test server did not bind')
+    const base = `http://127.0.0.1:${address.port}`
+    const outputDir = await mkdtemp(join(tmpdir(), 'nexez-release-cert-'))
+    const reportPath = join(outputDir, 'report.json')
+
+    const result = await runRelease({
+      NEXEZ_MARKETING_BASE: base,
+      NEXEZ_APP_BASE: base,
+      NEXEZ_ADMIN_BASE: base,
+      NEXEZ_AGENT_BASE: base,
+      NEXEZ_RELEASE_CERT_ENDPOINT: `${base}/api/internal/release-certifications`,
+      NEXEZ_RELEASE_CERT_SECRET: SECRET,
+      NEXEZ_COMMIT_SHA: SHA,
+      NEXEZ_CI_CONCLUSION: 'success',
+      NEXEZ_RELEASE_WAIT_MS: '1000',
+      NEXEZ_RELEASE_POLL_MS: '20',
+      NEXEZ_RELEASE_TIMEOUT_MS: '2000',
+      NEXEZ_RELEASE_REPORT_PATH: reportPath,
+      STRIPE_SECRET_KEY: '',
+      STRIPE_PRICE_LAUNCH: '',
+      STRIPE_PRICE_PRO: '',
+      STRIPE_PRICE_SCALE: '',
+    })
+
+    expect(result.code).toBe(1)
+    expect(result.output).toContain('missing endpoint roles: connected-account')
+    expect(result.output).toContain('missing refund events: refund.failed')
+    const report = JSON.parse(await readFile(reportPath, 'utf8'))
+    expect(report.checks).toContainEqual(expect.objectContaining({
+      id: 'launch-control',
+      status: 'fail',
+      detail: expect.stringContaining('1 matching Stripe endpoints'),
+    }))
+  }, 15_000)
 })
+
+type RouteOptions = {
+  supportApiStatus?: number
+  launchHealth?: Record<string, unknown>
+}
 
 function route(
   request: IncomingMessage,
   response: ServerResponse,
   body: string,
   captureSubmission: (value: Record<string, unknown>) => void,
-  supportApiStatus = 401,
+  options: RouteOptions = {},
 ) {
   const requestUrl = new URL(request.url || '/', baseFrom(request))
   const path = requestUrl.pathname
   if (path === '/api/internal/launch-health') {
     expect(request.headers.authorization).toBe(`Bearer ${SECRET}`)
-    return json(response, 200, {
+    const launchHealth = options.launchHealth ?? {
       ok: true,
       service: 'nexez-launch-control',
       deployment: {
@@ -137,7 +208,8 @@ function route(
       },
       summary: { status: 'ready', score: 100 },
       blockers: [],
-    })
+    }
+    return json(response, launchHealth.ok === false ? 503 : 200, launchHealth)
   }
   if (path === '/api/internal/release-certifications' && request.method === 'POST') {
     expect(request.headers.authorization).toBe(`Bearer ${SECRET}`)
@@ -157,9 +229,11 @@ function route(
     return response.end()
   }
   if (path === '/api/support/tickets' && request.method === 'GET') {
+    const supportApiStatus = options.supportApiStatus ?? 401
     return json(response, supportApiStatus, supportApiStatus === 401 ? { error: 'Not authenticated' } : { tickets: [] })
   }
   if (path === `/api/support/tickets/${SUPPORT_REQUEST_ID}/messages` && request.method === 'POST') {
+    const supportApiStatus = options.supportApiStatus ?? 401
     return json(response, supportApiStatus, supportApiStatus === 401 ? { error: 'Not authenticated' } : { ok: true })
   }
   if (path === '/api/agent-lab/research-runs') return json(response, 401, { error: 'Sign in to view saved research.' })

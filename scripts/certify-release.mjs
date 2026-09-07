@@ -51,8 +51,11 @@ await check('launch-control', 'Launch Control readiness', true, async () => {
   const blockers = Array.isArray(machineHealth.blockers)
     ? machineHealth.blockers.map((item) => item.id).filter(Boolean)
     : []
+  const stripeConfiguration = blockers.includes('stripe-delivery')
+    ? describeStripeWebhookConfiguration(machineHealth.stripeWebhookConfiguration)
+    : ''
   assert(machineHealth.ok === true, blockers.length
-    ? `Required checks are not ready: ${blockers.join(', ')}`
+    ? `Required checks are not ready: ${blockers.join(', ')}${stripeConfiguration ? `. ${stripeConfiguration}` : ''}`
     : 'Launch Control did not report ready')
   return `${machineHealth.summary?.score ?? 0}% readiness with no required blockers.`
 })
@@ -376,6 +379,29 @@ function normalizeSha(value) {
 
 function cleanDetail(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 300)
+}
+
+function describeStripeWebhookConfiguration(value) {
+  if (!value || typeof value !== 'object') return ''
+  const details = []
+  if (Number.isInteger(value.stripeWebhookEndpointCount)) {
+    details.push(`${value.stripeWebhookEndpointCount} matching Stripe endpoints`)
+  }
+  if (value.stripeWebhookEndpointsEnabled === false) details.push('at least one endpoint is disabled')
+  if (Array.isArray(value.stripeWebhookMissingEndpointRoles) && value.stripeWebhookMissingEndpointRoles.length) {
+    details.push(`missing endpoint roles: ${value.stripeWebhookMissingEndpointRoles.join(', ')}`)
+  }
+  if (Array.isArray(value.stripeWebhookMissingRefundEvents) && value.stripeWebhookMissingRefundEvents.length) {
+    details.push(`missing refund events: ${value.stripeWebhookMissingRefundEvents.join(', ')}`)
+  }
+  if (!details.length && [
+    value.stripeWebhookEndpointsEnabled,
+    value.stripeWebhookEndpointRolesCovered,
+    value.stripeWebhookRefundEventsCovered,
+  ].some((item) => item == null)) {
+    details.push('Stripe endpoint configuration is unverifiable')
+  }
+  return details.join('; ')
 }
 
 function failureLines(output) {
