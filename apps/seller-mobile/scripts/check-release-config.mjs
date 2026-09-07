@@ -63,6 +63,8 @@ check(eas.build?.development?.developmentClient === true, 'Development profile m
 check(eas.build?.['development-simulator']?.ios?.simulator === true, 'iOS simulator profile is missing')
 check(eas.build?.preview?.environment === 'preview', 'Preview profile environment is missing')
 check(eas.build?.preview?.android?.buildType === 'apk', 'Android preview must produce an APK')
+check(eas.cli?.appVersionSource === 'remote', 'EAS must allocate build numbers remotely')
+check(eas.cli?.requireCommit === true, 'EAS builds must use a clean committed source tree')
 check(eas.build?.production?.environment === 'production', 'Production profile environment is missing')
 check(eas.build?.production?.autoIncrement === true, 'Production builds must auto-increment')
 

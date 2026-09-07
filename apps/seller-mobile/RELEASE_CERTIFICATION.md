@@ -50,10 +50,11 @@ The command validates release configuration and artwork, TypeScript, the mobile 
 Expo lint, SDK dependency compatibility, the static web bundle, mobile-platform contract parity,
 and the repository prose policy.
 
-Latest local result: pass. The distribution certificate completed with 18 mobile test files and
-156 tests, 7 platform-contract test files and 45 tests, a 40-route static web export, clean Expo
-lint, compatible Expo dependencies, and a clean repository prose check. `expo-doctor` also passed
-all 21 checks, and the linked `public` and `private` database schemas reported no lint errors.
+Latest local result: pass. The distribution certificate completed with 19 mobile test files and
+158 tests, 7 platform-contract test files and 45 tests, a 40-route static web export, clean Expo
+lint, compatible Expo dependencies, and a clean repository prose check. Earlier platform
+verification also passed all 21 `expo-doctor` checks and found no lint errors in the linked
+`public` and `private` database schemas; those two checks were not repeated for this build slice.
 
 ## Phase 6 build evidence
 
@@ -85,7 +86,20 @@ Local execution constraints for this pass:
 
 ## Build commands
 
+EAS allocates production build numbers remotely and requires a clean committed source tree.
+The local `ios.buildNumber` and `android.versionCode` values are development defaults; they are
+not the source of truth for store builds. Before the first build after switching to remote
+versioning, use `eas build:version:get --platform all --profile production --json` and initialize
+each platform with `eas build:version:set` to at least its last issued build number. The last
+issued Android production version was `2`; the last iOS simulator version was `1`.
+
+Build from an isolated clean checkout so unrelated untracked files are not uploaded. Run the
+automated certificate against that checkout, record its full Git SHA and tree hash, and keep
+the EAS build IDs with the resulting artifact versions. A build alone does not satisfy the
+physical-device matrix or authorize a store submission.
+
 ```bash
+npx eas-cli build --platform android --profile production --non-interactive --freeze-credentials
 npx eas-cli build --platform android --profile preview
 npx eas-cli build --platform ios --profile development-simulator
 npx eas-cli build --platform ios --profile development
