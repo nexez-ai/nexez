@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SessionProvider } from '@/src/hooks/useSession'
 import { ToastProvider } from '@/src/components/Toast'
 import { NotificationObserver } from '@/src/components/NotificationObserver'
+import { renderAuthScreen } from '@/src/components/AuthGate'
 import { initObservability, withObservability } from '@/src/lib/observability'
 import { colors } from '@/src/theme/colors'
 
@@ -66,7 +67,7 @@ function RootLayoutNav() {
       <ThemeProvider value={DarkTheme}>
         <ToastProvider>
           <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack screenLayout={renderAuthScreen} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="onboarding" />

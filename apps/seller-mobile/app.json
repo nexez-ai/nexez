@@ -19,6 +19,11 @@
     "android": {
       "package": "app.nexez.sellerhub",
       "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0a0e16",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

@@ -40,6 +40,14 @@ check(app.ios?.bundleIdentifier === 'app.nexez.sellerhub', 'Unexpected iOS bundl
 check(/^\d+$/.test(app.ios?.buildNumber ?? ''), 'iOS build number must be numeric')
 check(app.android?.package === 'app.nexez.sellerhub', 'Unexpected Android package')
 check(Number.isInteger(app.android?.versionCode) && app.android.versionCode > 0, 'Android version code must be a positive integer')
+for (const permission of [
+  'android.permission.SYSTEM_ALERT_WINDOW',
+  'android.permission.READ_EXTERNAL_STORAGE',
+  'android.permission.WRITE_EXTERNAL_STORAGE',
+]) {
+  check(resolvedApp.android?.blockedPermissions?.includes(permission), `${permission} must be blocked`)
+  check(!resolvedApp.android?.permissions?.includes(permission), `${permission} must not be requested`)
+}
 check(app.extra?.eas?.projectId === easProjectId, 'Unexpected EAS project ID')
 const sentryPlugin = app.plugins?.find(
   (plugin) => Array.isArray(plugin) && plugin[0] === '@sentry/react-native/expo',
