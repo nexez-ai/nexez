@@ -5,7 +5,7 @@ import { recordOrganizationScanRecovery } from '@/lib/server/organization-scan-o
 
 export const runOrganizationScanBatch = inngest.createFunction({
   id: 'organization-scan-batch', retries: 2, triggers: { event: ORGANIZATION_SCAN_BATCH },
-  concurrency: [{ limit: 3, key: 'event.data.orgId' }, { limit: 8 }],
+  concurrency: [{ limit: 3, key: 'event.data.orgId' }, { limit: 5 }],
 }, async ({ event, step }) => {
   const parsed = organizationScanEventSchema.safeParse(event.data)
   if (!parsed.success) return { skipped: 'invalid_event' }

@@ -44,7 +44,10 @@ if (hasInngestEnv()) {
    the Inngest Vercel integration (which sets the env vars for you).
 2. If configuring manually, set in Vercel (Production at minimum):
    - `INNGEST_EVENT_KEY`: from Inngest dashboard, Events, Event Keys
-   - `INNGEST_SIGNING_KEY`: from Inngest dashboard, app settings
+   - `INNGEST_SIGNING_KEY`: from the same Inngest environment's Signing Keys
+   Set `INNGEST_SERVE_ORIGIN=https://app.nexez.ai` for Production so the Vercel
+   integration uses the canonical app host. Do not apply the production origin
+   to Preview or Development.
 3. Register the app URL: `https://app.nexez.ai/api/inngest`. Unlisted `/api/*`
    routes are private-by-default in `lib/site.ts`, so the serve route is
    canonical on the APP host. Do not register the marketing or runtime host.
@@ -58,6 +61,18 @@ Function configuration changes require a new app sync. The Vercel integration ca
 sync deployments automatically; otherwise use the app's Resync action. Verify the
 endpoint and deployment rather than treating an unsigned endpoint request as a
 successful invocation. See [Inngest app sync](https://www.inngest.com/docs/apps/cloud).
+
+For the Vercel-managed account, use the existing resource's **Open in Inngest**
+link. A separate personal Inngest session can hide that account. Check that the
+dashboard contains the Vercel deployment's sync history before registering; a
+same-named organization does not establish that its signing key matches. Failed
+automatic registrations appear under **Unattached syncs**.
+
+The linked production account currently permits five concurrent steps. The scan
+batch function caps concurrency at five across batches and three per organization.
+Inngest rejects the whole app when a function's configured concurrency exceeds the
+account limit, including while the pilot is disabled. Recheck account capacity
+before raising these caps. The account also shares capacity with other functions.
 
 ## Scanner cleanup and activation readiness
 
