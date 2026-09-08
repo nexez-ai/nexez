@@ -130,21 +130,21 @@ export function OrganizationScanWorkspace({ orgId, orgSlug, batchId, batchLimit,
             </div>
             <p className="text-xs leading-5 text-[var(--fg-muted)]">Up to {batchLimit} public HTTP or HTTPS origins. Omit paths, credentials, queries and custom ports. Files are parsed in your browser and are not uploaded.</p>
             {input && <div aria-live="polite" className="text-sm">
-              <p>{parsed.targets.length} unique websites{parsed.duplicateCount ? `, ${parsed.duplicateCount} duplicate rows removed` : ''}.</p>
+              <p>{parsed.targets.length} unique website{parsed.targets.length === 1 ? '' : 's'}{parsed.duplicateCount ? `, ${parsed.duplicateCount} duplicate row${parsed.duplicateCount === 1 ? '' : 's'} removed` : ''}.</p>
               {parsed.issues.length > 0 && <ul className="mt-2 list-inside list-disc">{parsed.issues.slice(0, 6).map((issue) => <li key={`${issue.line}:${issue.message}`}>{issue.line ? `Row ${issue.line}: ` : ''}{issue.message}</li>)}</ul>}
               {parsed.targets.length > batchLimit && <p>This exceeds your workspace’s {batchLimit}-target batch limit.</p>}
               {parsed.targets.length > remaining && <p>This exceeds your remaining daily allowance.</p>}
             </div>}
             <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" checked={attested} onChange={(event) => setAttested(event.target.checked)} disabled={busy} className="mt-1.5" />I have a legitimate business purpose for these public website checks and will respect the sites’ crawl rules.</label>
             <p className="text-xs leading-5 text-[var(--fg-muted)]">Accepted targets use the daily allowance even if cancelled or unsuccessful. Retries do not charge it again. Results expire after 90 days; you can delete them sooner. Scanning does not establish site ownership or merchant consent.</p>
-            <button type="submit" className={`${button} bg-[var(--fg)] text-[var(--bg)]`} disabled={!canSubmit}>{busy ? 'Submitting...' : `Scan ${parsed.targets.length || ''} websites`}</button>
+            <button type="submit" className={`${button} bg-[var(--fg)] text-[var(--bg)]`} disabled={!canSubmit}>{busy ? 'Submitting...' : parsed.targets.length ? `Scan ${parsed.targets.length} website${parsed.targets.length === 1 ? '' : 's'}` : 'Scan websites'}</button>
           </form> : <p className="mt-3 text-sm text-[var(--fg-muted)]">Scanning is not available in this workspace yet. Your pilot contact will let you know when you can submit websites.</p>}
         </div>
         <div className={panel}>
           <h2 className="text-lg font-semibold">Recent batches</h2>
           {!workspace.batches.length ? <p className="mt-3 text-sm text-[var(--fg-muted)]">Your first batch will appear here.</p> : <ul className="mt-3 divide-y divide-[var(--bd-10)]">{workspace.batches.map((item) => <li key={item.id} className="py-4">
-            <Link prefetch={false} href={`/console/${orgSlug}/scans/${item.id}`} className="font-medium underline underline-offset-4">{item.total} websites · {new Date(item.created_at).toLocaleString()}</Link>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">{item.succeeded} results · {item.failed} failed · {item.cancelled_targets} cancelled · {item.queued + item.running} pending</p>
+            <Link prefetch={false} href={`/console/${orgSlug}/scans/${item.id}`} className="font-medium underline underline-offset-4">{item.total} website{item.total === 1 ? '' : 's'} · {new Date(item.created_at).toLocaleString()}</Link>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">{item.succeeded} result{item.succeeded === 1 ? '' : 's'} · {item.failed} failed · {item.cancelled_targets} cancelled · {item.queued + item.running} pending</p>
           </li>)}</ul>}
           {workspace.batches.length === 20 && <p className="mt-3 text-xs text-[var(--fg-muted)]">Showing the 20 most recent batches.</p>}
         </div>
@@ -152,13 +152,13 @@ export function OrganizationScanWorkspace({ orgId, orgSlug, batchId, batchLimit,
       {batch && <>
         <div className={panel}>
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><h2 className="text-lg font-semibold">{batch.total} websites</h2><p className="mt-1 text-sm text-[var(--fg-muted)]">Submitted {new Date(batch.created_at).toLocaleString()}</p></div>
+            <div><h2 className="text-lg font-semibold">{batch.total} website{batch.total === 1 ? '' : 's'}</h2><p className="mt-1 text-sm text-[var(--fg-muted)]">Submitted {new Date(batch.created_at).toLocaleString()}</p></div>
             <div className="flex flex-wrap gap-2">
               {(batch.queued + batch.running > 0) && <button className={button} type="button" disabled={busy} onClick={() => void mutate('PATCH', { action: 'cancel' })}>Cancel pending scans</button>}
               <button className={button} type="button" disabled={busy} onClick={() => setDeleteOpen(true)}>Delete batch</button>
             </div>
           </div>
-          <p role="status" className="mt-4 text-sm">{batch.succeeded} results · {batch.failed} failed · {batch.cancelled_targets} cancelled · {batch.queued + batch.running} pending</p>
+          <p role="status" className="mt-4 text-sm">{batch.succeeded} result{batch.succeeded === 1 ? '' : 's'} · {batch.failed} failed · {batch.cancelled_targets} cancelled · {batch.queued + batch.running} pending</p>
           <progress aria-label="Scan progress" value={batch.succeeded + batch.failed + batch.cancelled_targets} max={batch.total || 1} className="mt-3 w-full accent-[var(--signal-solid)]" />
           <p className="mt-3 text-xs leading-5 text-[var(--fg-muted)]">Failed and cancelled scans count toward completed progress. Pending work expires after 20 minutes. Results expire {new Date(batch.expires_at).toLocaleDateString()}.</p>
           {deleteOpen && <div role="alertdialog" aria-label="Delete this batch" className="mt-4 rounded-xl border border-[var(--bd-10)] p-4">
