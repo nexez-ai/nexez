@@ -45,9 +45,11 @@ if (hasInngestEnv()) {
 2. If configuring manually, set in Vercel (Production at minimum):
    - `INNGEST_EVENT_KEY`: from Inngest dashboard, Events, Event Keys
    - `INNGEST_SIGNING_KEY`: from the same Inngest environment's Signing Keys
-   Set `INNGEST_SERVE_ORIGIN=https://app.nexez.ai` for Production so the Vercel
-   integration uses the canonical app host. Do not apply the production origin
-   to Preview or Development.
+   Set `INNGEST_SERVE_ORIGIN=https://app.nexez.ai` for Production so registered
+   functions use the canonical app host. In Inngest's Vercel integration, set the
+   Nexez project's **Custom Production Domain** to `app.nexez.ai` so automatic
+   sync requests also use that host. Keep its path as `/api/inngest`. Do not
+   apply the production origin to Preview or Development.
 3. Register the app URL: `https://app.nexez.ai/api/inngest`. Unlisted `/api/*`
    routes are private-by-default in `lib/site.ts`, so the serve route is
    canonical on the APP host. Do not register the marketing or runtime host.
