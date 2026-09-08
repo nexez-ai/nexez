@@ -2,9 +2,9 @@
 // Kept framework-free (no next/server, no @supabase/ssr) so the gate's routing
 // rules are unit-testable in isolation.
 
-/** Routes that require an authenticated account: seller and admin workspaces. */
+/** Routes that require an authenticated account: seller, organization, and admin workspaces. */
 export function isProtectedPath(pathname: string): boolean {
-  return pathname === '/dashboard' || pathname.startsWith('/dashboard/') || pathname === '/admin' || pathname.startsWith('/admin/')
+  return ['/dashboard', '/console', '/admin'].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 
 /**

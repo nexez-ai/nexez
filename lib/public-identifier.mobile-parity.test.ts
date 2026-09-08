@@ -28,6 +28,7 @@ describe('seller mobile public identifier parity', () => {
     'fresh-shop',
     'Fresh Shop',
     'checkout',
+    'console',
     'xn--merchant',
     'nexez-partner',
     'partner-nexez',

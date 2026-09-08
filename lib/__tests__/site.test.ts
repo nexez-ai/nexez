@@ -88,6 +88,11 @@ describe('canonicalHostFor', () => {
     expect(canonicalHostFor('/api/tools/llms-txt')).toBe(MARKETING_HOST)
 
     expect(canonicalHostFor('/dashboard')).toBe(APP_HOST)
+    expect(canonicalHostFor('/console')).toBe(APP_HOST)
+    expect(canonicalHostFor('/console/agency-one/scans')).toBe(APP_HOST)
+    expect(canonicalHostFor('/api/organizations')).toBe(APP_HOST)
+    expect(canonicalHostFor('/api/organizations/one/context')).toBe(APP_HOST)
+    expect(canonicalHostFor('/consoles')).toBe(AGENT_RUNTIME_HOST)
     expect(canonicalHostFor('/admin')).toBe(ADMIN_HOST)
     expect(canonicalHostFor('/admin/growth')).toBe(ADMIN_HOST)
     expect(canonicalHostFor('/api/admin/session')).toBe(ADMIN_HOST)

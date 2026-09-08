@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
   Bot,
@@ -88,6 +88,7 @@ export default function GlobalAgentSimulator() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyQuery, setHistoryQuery] = useState('')
+  const historyRequestId = useRef(0)
   const [message, setMessage] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   // Which lens of the Agent Lab is active. 'test' (your page / any slug), 'url'
@@ -213,20 +214,22 @@ export default function GlobalAgentSimulator() {
   }
 
   async function loadDurableHistory(pageId: string) {
+    const requestId = ++historyRequestId.current
     setHistoryLoading(true)
     setHistoryError(null)
     try {
       const response = await fetch(`/api/simulator/runs?pageId=${encodeURIComponent(pageId)}&limit=100`)
       const data = await response.json()
+      if (requestId !== historyRequestId.current) return
       if (!response.ok || !Array.isArray(data?.runs)) {
         setHistoryError(data?.error || 'Saved listing runs could not be loaded.')
         return
       }
       setHistory(data.runs.map((run: AgentLabRun) => agentLabRunToHistoryEntry(run)))
     } catch {
-      setHistoryError('Saved listing runs could not be loaded.')
+      if (requestId === historyRequestId.current) setHistoryError('Saved listing runs could not be loaded.')
     } finally {
-      setHistoryLoading(false)
+      if (requestId === historyRequestId.current) setHistoryLoading(false)
     }
   }
 
@@ -269,6 +272,10 @@ export default function GlobalAgentSimulator() {
         const historyEntry = agentLabRunToHistoryEntry(run)
         setHistory((current) => [historyEntry, ...current.filter((entry) => entry.id !== historyEntry.id)])
         setMessage('Analysis complete and saved as an immutable Agent Lab run.')
+        // The parallel initial read may have captured history before this save.
+        // Refresh after the commit and invalidate older responses, including
+        // their loading/error updates. Keep the saved run visible if refresh fails.
+        void loadDurableHistory(page.id)
       } else if (data.persistenceError) {
         setMessage(data.persistenceError)
       } else {
@@ -282,6 +289,7 @@ export default function GlobalAgentSimulator() {
   }
 
   async function handleSelectMyPage(page: AgentPage) {
+    historyRequestId.current += 1
     const nextQuery = buildDefaultAgentQuery(page)
     setUrlComparison(null)
     setSelectedPage(page)
@@ -313,7 +321,10 @@ export default function GlobalAgentSimulator() {
       setUrlComparison(null)
       setSelectedPage(page)
       setQuery(nextQuery)
+      historyRequestId.current += 1
       setHistory([])
+      setHistoryLoading(false)
+      setHistoryError(null)
       setHistoryQuery('')
       await runSimulationForPage(page, nextQuery)
     } catch (e: any) {

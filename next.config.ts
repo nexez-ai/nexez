@@ -116,6 +116,7 @@ const nextConfig: NextConfig = {
       // crawlable agent pages, public JSON artifacts, or dashboard preview iframes.
       { source: "/", headers: frame },
       { source: "/dashboard/:path*", headers: frame },
+      { source: "/console/:path*", headers: frame },
       { source: "/admin/:path*", headers: frame },
       { source: "/login", headers: frame },
       { source: "/auth/:path*", headers: frame },

@@ -3,6 +3,8 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
+import { NexezLogo } from './NexezLogo'
 import { hasSupabaseAuthCookieInDocument } from '../lib/auth-cookie'
 import { fetchCommerceAttention } from '../lib/commerce-attention-client'
 import type { CommerceAttentionSummary } from '../lib/commerce-attention'
@@ -17,6 +19,7 @@ import { isDualPath, isMarketingPath } from '../lib/site'
 const PlatformShell = dynamic(() => import('./PlatformShell'))
 const MobilePlatformNav = dynamic(() => import('./MobilePlatformNav').then((m) => m.MobilePlatformNav))
 const MarketingShell = dynamic(() => import('./MarketingShell').then((m) => m.MarketingShell))
+const OrganizationSignOut = dynamic(() => import('./organizations/OrganizationSignOut'))
 
 // Product routes that get the in-app shell. The discovery/simulator/support
 // surfaces moved to MarketingShell as part of the nexez.ai / app.nexez.ai split.
@@ -58,6 +61,25 @@ export function PlatformFrame({ children }: { children: ReactNode }) {
     // mismatch the (static, anonymous) server HTML and break hydration.
     setHasSession(hasSupabaseAuthCookieInDocument())
   }, [])
+
+  // Organization context has its own navigation. Mounting seller chrome here
+  // would fetch merchant attention and imply merchant controls apply to the org.
+  if (pathname === '/console' || pathname.startsWith('/console/')) {
+    return (
+      <div className="nx-dash min-h-screen bg-[var(--bg)] text-[var(--fg)]">
+        <header className="border-b border-[var(--bd-10)]">
+          <nav aria-label="Workspace navigation" className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">
+            <Link href="/console" prefetch={false} aria-label="Nexez workspaces" className="flex items-center gap-3 font-semibold"><NexezLogo tone="theme" /><span>Workspaces</span></Link>
+            <div className="flex items-center gap-5">
+              <Link href="/dashboard" prefetch={false} className="text-sm text-[var(--fg-muted)] hover:text-[var(--fg)]">Merchant dashboard</Link>
+              <OrganizationSignOut />
+            </div>
+          </nav>
+        </header>
+        {children}
+      </div>
+    )
+  }
 
   // Dual discovery surfaces: signed-in visitors get the in-app dashboard nav
   // (and the proxy keeps them on the app host); anonymous visitors get the

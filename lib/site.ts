@@ -65,7 +65,7 @@ const DUAL_PREFIXES = ['/discovery', '/leaderboard', '/simulator', '/support'] a
 
 const ADMIN_PREFIXES = ['/admin'] as const
 const ADMIN_API_PREFIXES = ['/api/admin'] as const
-const APP_PREFIXES = ['/dashboard', '/create', '/login', '/auth', '/onboard', '/invite', '/nexxi', '/team', '/shopify'] as const
+const APP_PREFIXES = ['/dashboard', '/console', '/create', '/login', '/auth', '/onboard', '/invite', '/nexxi', '/team', '/shopify'] as const
 
 const MARKETING_API_PREFIXES = [
   '/api/directory',
@@ -103,6 +103,7 @@ const APP_API_PREFIXES = [
   // more-specific prefix ahead of the public staged-settlement runtime prefix.
   '/api/staged-settlements/agreements',
   '/api/onboarding',
+  '/api/organizations',
   '/api/pages',
   '/api/payment-method',
   '/api/readiness',
