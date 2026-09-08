@@ -24,7 +24,8 @@ test('scan page sends an explicit source without requiring a referrer', async ({
     submitted = route.request().postDataJSON()
     await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Verification only' }) })
   })
-  await page.goto('/scan', { waitUntil: 'domcontentloaded' })
+  // Let the initial client hydration finish before typing into the controlled form.
+  await page.goto('/scan', { waitUntil: 'networkidle' })
   await page.getByLabel('Website URL to scan').fill('example.com')
   await page.getByRole('button', { name: /see what agents see/i }).click()
   await expect.poll(() => submitted).toEqual({ url: 'example.com', source: 'scan-page' })
