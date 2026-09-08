@@ -12,6 +12,8 @@ export const OUTBOUND_WEBHOOKS_DISPATCH = 'nexez/outbound-webhooks.dispatch'
 export const FRESHNESS_NUDGE = 'nexez/freshness.nudge'
 /** Re-exercise the public agent feed surfaces (also runs on a schedule). */
 export const FEED_REGENERATE = 'nexez/feed.regenerate'
+/** Identifier-only event. Prospect origins and results stay in the database. */
+export const ORGANIZATION_SCAN_BATCH = 'nexez/organization-scan.batch'
 
 export type OutboundWebhooksDispatchData = {
   ownerId: string | null

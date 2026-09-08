@@ -5,11 +5,12 @@ import 'server-only'
  * External-site scanners must use this instead of `Response.text()` so one
  * unexpectedly large page cannot consume an unbounded amount of memory.
  */
-export async function readBodyCapped(res: Response, maxBytes: number): Promise<string | null> {
+export async function readBodyCapped(res: Response, maxBytes: number, onBytes?: (bytes: number) => void): Promise<string | null> {
   const body = res.body
   if (!body) {
     try {
       const text = await res.text()
+      onBytes?.(Math.min(new TextEncoder().encode(text).byteLength, maxBytes))
       return text.length > maxBytes ? text.slice(0, maxBytes) : text
     } catch {
       return null
@@ -28,6 +29,7 @@ export async function readBodyCapped(res: Response, maxBytes: number): Promise<s
       const remaining = maxBytes - bytes
       const chunk = value.byteLength > remaining ? value.subarray(0, remaining) : value
       bytes += chunk.byteLength
+      onBytes?.(chunk.byteLength)
       out += decoder.decode(chunk, { stream: true })
     }
     out += decoder.decode()

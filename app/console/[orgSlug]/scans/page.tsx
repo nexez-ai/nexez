@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { getOrganizationWorkspace, organizationSlugSchema } from '@/lib/server/organization-context'
+import { OrganizationScanWorkspace } from '@/components/organizations/OrganizationScanWorkspace'
 
 export const metadata: Metadata = { title: 'Website scans', robots: { index: false, follow: false } }
 export const dynamic = 'force-dynamic'
@@ -29,10 +30,8 @@ export default async function OrganizationScans({ params }: { params: Promise<{ 
         <>
           <p className="mt-8 break-words text-sm font-medium text-[var(--fg-muted)]">{result.organization!.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Website scans</h1>
-          <div className="mt-8 rounded-[var(--r-card)] border border-[var(--bd-10)] bg-[var(--ov-03)] p-6">
-            <h2 className="font-semibold">Your pilot workspace</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--fg-muted)]">Scanning is not available in this workspace yet. Your pilot contact will let you know when you can submit websites.</p>
-          </div>
+          <OrganizationScanWorkspace key={result.organization!.id} orgId={result.organization!.id} orgSlug={orgSlug}
+            batchLimit={result.organization!.scanAccess.maxTargetsPerBatch ?? 50} dailyLimit={result.organization!.scanAccess.maxTargetsPerDay ?? 250} />
         </>
       )}
     </main>

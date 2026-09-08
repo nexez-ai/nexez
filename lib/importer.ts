@@ -1261,6 +1261,8 @@ type SafeFetchOptions = {
   pinnedDns?: boolean
   /** Scanner posture: permit only the conventional public web ports. */
   standardPortsOnly?: boolean
+  /** Scanner policy and shared pressure gate, evaluated for every redirect hop. */
+  beforeRequest?: (url: string) => Promise<boolean>
 }
 
 function importerFetchOptions(timeoutMs: number, maxRedirects = 2): SafeFetchOptions {
@@ -1369,17 +1371,20 @@ export async function safeFetch(
   const timeoutMs = opts.timeoutMs ?? 6500
   let current = url
   for (let hop = 0; hop <= maxRedirects; hop++) {
+    if (init.signal?.aborted) return null
     if (getImportUrlError(current)) return null
     const parsed = new URL(current)
     if (opts.standardPortsOnly && !standardWebPort(parsed)) return null
+    if (opts.beforeRequest && !await opts.beforeRequest(current)) return null
     if (await getResolvedImportUrlError(current, { useCache: !opts.pinnedDns, failClosed: Boolean(opts.pinnedDns) })) return null
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const signal = init.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal
     let res: Response
     try {
       const fetched = opts.pinnedDns
-        ? await fetchWithPinnedPublicDns(current, { ...init, redirect: 'manual' }, controller.signal, timeoutMs)
-        : await fetch(current, { ...init, signal: controller.signal, redirect: 'manual' })
+        ? await fetchWithPinnedPublicDns(current, { ...init, redirect: 'manual' }, signal, timeoutMs)
+        : await fetch(current, { ...init, signal, redirect: 'manual' })
       if (!fetched) return null
       res = fetched
     } catch {

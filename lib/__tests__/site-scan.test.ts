@@ -93,12 +93,12 @@ describe('gatherSiteSignals', () => {
 
   it('rejects unsafe literal and resolved hosts without fetching', async () => {
     importUrlError = 'Blocked private host'
-    expect(await gatherSiteSignals('http://169.254.169.254/')).toEqual({ error: 'Blocked private host' })
+    expect(await gatherSiteSignals('http://169.254.169.254/', {})).toEqual({ error: 'Blocked private host' })
     expect(safeFetch).not.toHaveBeenCalled()
 
     importUrlError = null
     resolvedUrlError = 'Resolves to a private IP'
-    expect(await gatherSiteSignals('http://localtest.me/')).toEqual({ error: 'Resolves to a private IP' })
+    expect(await gatherSiteSignals('http://localtest.me/', {})).toEqual({ error: 'Resolves to a private IP' })
     expect(safeFetch).not.toHaveBeenCalled()
   })
 
@@ -129,7 +129,7 @@ describe('gatherSiteSignals', () => {
       return bodyResponse(pageHtml, { headers: { 'Last-Modified': 'Wed, 01 Jul 2026 12:00:00 GMT' } })
     })
 
-    const output = await gatherSiteSignals('acme.com')
+    const output = await gatherSiteSignals('acme.com', {})
     expect('error' in output).toBe(false)
     if ('error' in output) return
     expect(output.origin).toBe('https://acme.com')
@@ -158,7 +158,7 @@ describe('gatherSiteSignals', () => {
       return new Response('', { status: 404 })
     })
 
-    const output = await gatherSiteSignals('acme.com')
+    const output = await gatherSiteSignals('acme.com', {})
     expect('error' in output).toBe(false)
     if ('error' in output) return
     expect(output.url).toBe('https://www.acme.com/welcome')

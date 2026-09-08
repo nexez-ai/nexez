@@ -3425,3 +3425,4 @@ rollback;
 
 -- Separate organization scan entitlements share this required CI entry point.
 \ir organization_workspace_foundation.sql
+\ir organization_scan_execution.sql

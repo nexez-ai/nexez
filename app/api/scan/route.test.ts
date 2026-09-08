@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 let rateLimited = false
 const gatherSiteSignals = vi.fn()
 const scheduleScanResultPersist = vi.fn()
+const networkFinished = vi.fn()
+const networkClose = vi.fn()
+vi.mock('@/lib/server/scan-network', async (original) => ({
+  ...await original<typeof import('@/lib/server/scan-network')>(),
+  createScanNetworkContext: () => ({ options: {}, assertFinished: networkFinished, close: networkClose }),
+}))
 
 vi.mock('../../../lib/rate-limit', () => ({
   enforceRateLimit: vi.fn(async () => (rateLimited ? new Response('rate', { status: 429 }) : null)),
@@ -36,7 +42,17 @@ const allowedRobots = {
 describe('POST /api/scan (public anonymous scanner)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    networkFinished.mockReset()
     rateLimited = false
+  })
+
+  it('fails closed when the shared scanner pressure service is unavailable', async () => {
+    const { ScanNetworkError } = await import('@/lib/server/scan-network')
+    networkFinished.mockImplementation(() => { throw new ScanNetworkError('network_error') })
+    gatherSiteSignals.mockResolvedValue({ error: 'not used' })
+    expect((await POST(post({ url: 'acme.com' }))).status).toBe(503)
+    expect(scheduleScanResultPersist).not.toHaveBeenCalled()
+    expect(networkClose).toHaveBeenCalledOnce()
   })
 
   it('429 when rate-limited', async () => {
