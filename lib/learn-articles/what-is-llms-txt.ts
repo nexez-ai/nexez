@@ -9,7 +9,7 @@ export const whatIsLlmsTxt: LearnArticle = {
   dek: 'The honest answer is nuanced: llms.txt is a ten-minute, zero-risk addition with no evidence behind it, sitting inside an agent-readiness stack where other artifacts demonstrably matter more. Here is what the file is, what the data shows, and what to prioritize.',
   category: 'Agent readiness',
   publishedAt: '2026-07-13',
-  updatedAt: '2026-07-13',
+  updatedAt: '2026-09-07',
   readMinutes: 9,
   blocks: [
     {
@@ -18,7 +18,7 @@ export const whatIsLlmsTxt: LearnArticle = {
     },
     {
       type: 'p',
-      text: 'The stakes behind the question are real. Salesforce reported that AI influenced $262 billion of 2025 holiday sales, and assistants now summarize, recommend, and increasingly book and buy on behalf of their users. Business owners are right to ask what makes a website readable to these agents. The problem is that llms.txt got marketed as the whole answer while the artifacts agents demonstrably consume went ignored.',
+      text: 'The stakes behind the question are real. Assistants now summarize, recommend, and in some categories phone a business on a customer’s behalf, so owners are right to ask what makes a website readable to them. The problem is that llms.txt got marketed as the whole answer while the artifacts agents demonstrably consume went ignored.',
     },
     {
       type: 'p',
@@ -80,7 +80,7 @@ export const whatIsLlmsTxt: LearnArticle = {
     },
     {
       type: 'p',
-      text: 'OpenAI and Anthropic tell a similar story by omission. Both document that their crawlers (GPTBot, ClaudeBot) obey robots.txt, but neither lists llms.txt as an input to search, browsing, or shopping features. When ChatGPT surfaces products to buy, OpenAI’s own merchant documentation points to structured product feeds, not markdown manifests. There is a real irony in Anthropic publishing an llms.txt for its docs while never committing to read anyone else’s.',
+      text: 'OpenAI and Anthropic tell a similar story by omission. Both document a roster of crawlers and how each treats robots.txt, covered in the [crawler guide](/learn/which-ai-crawlers-to-allow), but neither lists llms.txt as an input to search, browsing, or shopping features. When ChatGPT surfaces products to buy, OpenAI’s own merchant documentation points to structured product feeds, not markdown manifests. There is a real irony in Anthropic publishing an llms.txt for its docs while never committing to read anyone else’s.',
     },
     {
       type: 'callout',
@@ -103,7 +103,7 @@ export const whatIsLlmsTxt: LearnArticle = {
     },
     {
       type: 'p',
-      text: 'Then come the commerce-specific surfaces. ChatGPT’s shopping experience runs on merchant product feeds, and OpenAI revamped Instant Checkout in March 2026 toward discovery-first, feed-driven merchant surfacing. Google’s UCP works the same way on its side. And for agents that act rather than just read, machine-readable action surfaces (OpenAPI specs, agent.json files, MCP servers) let an agent check availability or complete a booking instead of just describing your business. If those acronyms are new, the [UCP vs ACP vs MCP explainer](/learn/ucp-vs-acp-vs-mcp) untangles which protocol does what.',
+      text: 'Then come the commerce-specific surfaces, and this is where an earlier version of this article was wrong. It said OpenAI revamped Instant Checkout in March 2026 toward discovery-first surfacing. OpenAI retired it, on March 4, 2026, and moved back to discovery in the assistant with the purchase completing on the merchant’s own site; [what happened to ChatGPT Instant Checkout](/learn/chatgpt-instant-checkout-retired) has the account. Merchant product feeds still drive ChatGPT’s shopping experience, so the feed work kept its value while the checkout surface it was sold alongside disappeared. Google’s UCP is the live agent-checkout rail on its side. And for agents that act rather than just read, machine-readable action surfaces (OpenAPI specs, agent.json files, MCP servers) let an agent check availability or complete a booking instead of just describing your business. If those acronyms are new, the [UCP vs ACP vs MCP explainer](/learn/ucp-vs-acp-vs-mcp) untangles which protocol does what.',
     },
     {
       type: 'table',
@@ -117,14 +117,14 @@ export const whatIsLlmsTxt: LearnArticle = {
         ],
         [
           'JSON-LD (schema.org)',
-          'Typed facts: prices, hours, services, reviews',
+          'Typed facts: prices, hours, services, policies',
           'Strong: documented by Google and Bing',
           'Low',
         ],
         [
           'Product/offer feed (ACP, UCP)',
           'A structured catalog for shopping surfaces',
-          'Strong: the enrollment ticket for ChatGPT and Google checkout',
+          'Strong: how ChatGPT surfaces products, and the route into UCP checkout',
           'Low to medium',
         ],
         [
@@ -136,7 +136,7 @@ export const whatIsLlmsTxt: LearnArticle = {
         [
           'MCP server',
           'Live tools: check availability, book, buy',
-          'Emerging: native to Claude and a growing client list',
+          'Strong and growing: apps in ChatGPT are built on it, and Claude ships a directory',
           'Medium',
         ],
         [
@@ -193,7 +193,7 @@ export const whatIsLlmsTxt: LearnArticle = {
       items: [
         'Make sure agents can fetch your pages at all. Server-render your content, keep critical information out of JavaScript-only rendering, and check that robots.txt is not blocking GPTBot, ClaudeBot, or Google-Extended unless you mean to.',
         'Add JSON-LD structured data for your business, services, and offers. This is the highest-leverage hour on the list: it is cheap, and the consumers are documented.',
-        'Publish a structured catalog or feed if you sell anything or take bookings. Feeds are the enrollment ticket for agentic shopping surfaces; the [ACP enrollment guide](/learn/acp-enrollment-guide) walks through the OpenAI side.',
+        'Publish a structured catalog or feed if you sell anything or take bookings. Feeds are what shopping surfaces read to surface you at all, which is now the whole prize on the OpenAI side since there is no in-chat checkout left to enroll in; the [ACP enrollment guide](/learn/acp-enrollment-guide) covers where the protocol still applies.',
         'Expose actions, not just facts. An OpenAPI spec or MCP server lets an agent move from "here is a physio clinic" to "I booked your Tuesday 3pm." For service businesses this is where [AI booking becomes real revenue](/learn/ai-agents-book-service-businesses) rather than a demo.',
         'Then add llms.txt. At this point it costs nothing, and there is a nonzero chance some agent someday reads it.',
       ],
