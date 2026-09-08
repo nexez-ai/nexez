@@ -4,6 +4,7 @@ import { gatherSiteSignals, normalizeScanUrl } from '../../../lib/server/site-sc
 import { AGENT_BOTS, evaluateCrawlability } from '../../../lib/crawlability'
 import { captureError, captureEvent } from '../../../lib/observability'
 import { scheduleScanResultPersist } from '../../../lib/server/log-scan-result'
+import { resolveScanSource } from '../../../lib/scan-funnel'
 import { randomUUID } from 'node:crypto'
 import { createScanNetworkContext, ScanNetworkError } from '../../../lib/server/scan-network'
 
@@ -29,13 +30,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Caller label, allowlisted so arbitrary client input never reaches telemetry.
-  // Callers that do not send one report 'unknown', which is enough to separate
-  // homepage-hero scans from every other caller.
-  const SCAN_SOURCES = ['hero', 'scan-page'] as const
-  const scanSource = (SCAN_SOURCES as readonly string[]).includes(body.source || '')
-    ? (body.source as string)
-    : 'unknown'
+  // Allowlisted labels win; same-origin /scan is a fallback for older clients.
+  // This is telemetry attribution only, never an authorization decision.
+  const scanSource = resolveScanSource(body.source, request.headers.get('referer'), request.url)
 
   const normalized = normalizeScanUrl(body.url || '')
   if (normalized) {

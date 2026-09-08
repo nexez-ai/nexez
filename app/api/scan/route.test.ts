@@ -26,6 +26,7 @@ vi.mock('../../../lib/server/log-scan-result', () => ({
 }))
 
 import { POST } from './route'
+import { captureEvent } from '../../../lib/observability'
 
 const post = (body: unknown) =>
   new Request('https://nexez.test/api/scan', {
@@ -76,7 +77,14 @@ describe('POST /api/scan (public anonymous scanner)', () => {
     expect(scheduleScanResultPersist).not.toHaveBeenCalled()
   })
 
-  it('returns score + checks + blockedBots and NO raw page body', async () => {
+  it.each([
+    [undefined, undefined, 'unknown'],
+    ['hero', 'https://nexez.test/scan', 'hero'],
+    ['scan-page', undefined, 'scan-page'],
+    [undefined, 'https://nexez.test/scan?url=acme.com', 'scan-page'],
+    [undefined, 'https://foreign.test/scan', 'unknown'],
+    ['invented', 'https://nexez.test/pricing', 'unknown'],
+  ])('returns a safe report with source %s / referrer %s attributed to %s', async (source, referer, expectedSource) => {
     gatherSiteSignals.mockResolvedValue({
       url: 'https://acme.com/',
       origin: 'https://acme.com',
@@ -113,10 +121,13 @@ describe('POST /api/scan (public anonymous scanner)', () => {
         robots: allowedRobots,
       },
     })
-    const res = await POST(post({ url: 'acme.com' }))
+    const request = post({ url: 'acme.com', source })
+    if (referer) request.headers.set('referer', referer)
+    const res = await POST(request)
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.ok).toBe(true)
+    expect(captureEvent).toHaveBeenCalledWith('scan.run', expect.objectContaining({ source: expectedSource }))
     expect(typeof json.score).toBe('number')
     expect(json.version).toBe(2)
     expect(json.dimensions.transactability.score).toBe(100)

@@ -172,7 +172,7 @@ export function ScanClient({ initialUrl = '' }: { initialUrl?: string }) {
       const response = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: value }),
+        body: JSON.stringify({ url: value, source: 'scan-page' }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {

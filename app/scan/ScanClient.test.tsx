@@ -46,6 +46,9 @@ describe('ScanClient email result control', () => {
     await user.click(screen.getByRole('button', { name: /see what agents see/i }))
 
     expect(await screen.findByText('Email me this scan')).toBeTruthy()
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({
+      url: 'axleplumbing.com', source: 'scan-page',
+    })
     await user.type(screen.getByLabelText('Email address for scan result'), 'owner@example.com')
     await user.click(screen.getByRole('button', { name: /email my result/i }))
 
