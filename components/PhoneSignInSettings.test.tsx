@@ -22,6 +22,17 @@ describe('PhoneSignInSettings', () => {
     expect(screen.getByRole('textbox', { name: 'Mobile number' })).toBeInTheDocument()
   })
 
+  it('preserves keyboard focus when the initial phone lookup finishes', async () => {
+    vi.mocked(fetch).mockImplementationOnce(() => response({ phoneMasked: null }))
+    render(<><button>Open account menu</button><PhoneSignInSettings initialPhoneMasked={null} /></>)
+    const accountMenu = screen.getByRole('button', { name: 'Open account menu' })
+    accountMenu.focus()
+
+    await screen.findByRole('textbox', { name: 'Mobile number' })
+    expect(accountMenu).toHaveFocus()
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
   it('sends a possession challenge without changing notification consent', async () => {
     vi.mocked(fetch)
       .mockImplementationOnce(() => response({ phoneMasked: null }))

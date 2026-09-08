@@ -245,7 +245,6 @@ export function PhoneSignInSettings({ initialPhoneMasked }: PhoneSignInSettingsP
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="+14155550123"
-                autoFocus={!linkedPhoneMasked}
                 disabled={busy}
                 className="min-h-12 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 text-[var(--fg)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--control-focus)] disabled:opacity-60"
               />
