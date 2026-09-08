@@ -80,6 +80,9 @@ importers:
       stripe:
         specifier: ^22.2.0
         version: 22.5.0(@types/node@20.19.43)
+      tldts:
+        specifier: 7.4.2
+        version: 7.4.2
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -5899,6 +5902,10 @@ packages:
 
   tldts@7.4.10:
     resolution: {integrity: sha512-GgouD1B+sWwvkaEq8vXC15DjQitxbvs12oIXELpconwm+Tg3zfcEv4jgzq3vtKverDXsg3VI8aRgNL2Nra0Iog==}
+    hasBin: true
+
+  tldts@7.4.2:
+    resolution: {integrity: sha512-kCwffuaH8ntKtygnWe1b4BJKWiCUH30n5KfoTr6IchcXOwR7chAOFJxFrH3vjANafUYrIA4a7SDL+nn7SiR4Sw==}
     hasBin: true
 
   to-regex-range@5.0.1:
@@ -12278,6 +12285,10 @@ snapshots:
   tldts-core@7.4.10: {}
 
   tldts@7.4.10:
+    dependencies:
+      tldts-core: 7.4.10
+
+  tldts@7.4.2:
     dependencies:
       tldts-core: 7.4.10
 
