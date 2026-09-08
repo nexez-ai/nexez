@@ -6,6 +6,7 @@
     { "path": "/api/cron/reconcile-growth", "schedule": "10 * * * *" },
     { "path": "/api/cron/scan-results", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/scan-retention", "schedule": "20 4 * * *" },
+    { "path": "/api/cron/organization-scan-maintenance", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/process-negotiations", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/send-sms", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/saved-search-alerts", "schedule": "0 */6 * * *" },

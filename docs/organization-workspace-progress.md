@@ -329,3 +329,53 @@ Pilot success then requires actionable findings, a selected real follow-up, repe
 use or a scheduled next use within 14 days, and plausible unit economics. Scanner
 evidence permits scanner expansion; it does not establish demand for connected
 merchant reporting.
+
+### Slice B release
+
+PR #283 merged at GitHub's `2026-09-08T05:50:16Z`, commit
+`9933f2104b34e9dee0f40afe0a271dea73ed6a1d`. The approved execution migration was
+applied and its exact SQL and grants verified before deployment. Production CI,
+full Supabase replay and Vercel deployment passed. Release certification passed
+13 required checks; the optional Stripe catalog check lacked its CI secret.
+The public scanner and seven signed-out workspace boundaries passed production
+smoke checks. All three pilot controls remained false, with no organizations or
+entitlements provisioned. Event and signing key names were present in production;
+a successful hosted Inngest recovery invocation was not verified by this release.
+
+## Slice C: scanner operations readiness
+
+The independent five-minute maintenance endpoint keeps scanner retention running
+without Inngest or pilot activation. Both cleanup paths record a transactional
+completion timestamp. Recovery records its deployment revision only after dispatch
+succeeds. Launch Control now reports fresh cleanup, overdue batch retention and
+recovery from the current deployment. Scanner data and raw errors never enter the
+operations projection or cron telemetry.
+
+Cleanup is a required platform check even with the pilot off. Recovery is required
+when submissions are enabled, and an optional attention item while disabled.
+Unavailable controls never imply a disabled pilot or a healthy runner. These checks
+report readiness; activation still requires the Stage 0 policy and participant
+decisions above. The detailed rollout and recovery procedure is in `docs/inngest.md`.
+
+### Local verification
+
+- All 5,265 root tests passed, including 55 operations cases. The existing opt-in
+  live importer benchmark remained skipped. TypeScript passed. ESLint had zero
+  errors and 14 existing warnings in unrelated files.
+- The prior scanner lifecycle suite and new operations gauntlet passed on a fresh
+  clone of the disposable PostgreSQL 17 execution fixture. The new suite covers
+  role denial, fixed grants/search paths, disabled-pilot cleanup, 100-batch limits,
+  remaining retention debt, cascading target deletion, shared anonymous record
+  cleanup, transaction rollback, malformed revisions and missing control roots.
+- Six local HTTP scenarios passed through the real Next route and SQL commands
+  behind a synthetic Supabase adapter: absent/wrong cron credentials, successful
+  cleanup, Launch Control integration, unproven-runner blocking and sanitized
+  failure when the marker row is absent. These fixtures use no production secrets.
+- The operations SQL suite uses the existing required entitlement test entry point.
+  No workflow changes are needed. Full Supabase replay, build and dead-code checks
+  remain CI gates under the repository's documented sandbox limitations.
+
+Hosted Inngest verification still needs dashboard sign-in. Successful synthetic
+tests do not prove cloud app sync, scheduled execution, delivered alerts, pilot
+usefulness or unit economics. Production schema and deployment for this slice
+remain pending approval after the reviewed branch passes its release gates.
