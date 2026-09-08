@@ -375,7 +375,27 @@ decisions above. The detailed rollout and recovery procedure is in `docs/inngest
   No workflow changes are needed. Full Supabase replay, build and dead-code checks
   remain CI gates under the repository's documented sandbox limitations.
 
-Hosted Inngest verification still needs dashboard sign-in. Successful synthetic
-tests do not prove cloud app sync, scheduled execution, delivered alerts, pilot
-usefulness or unit economics. Production schema and deployment for this slice
-remain pending approval after the reviewed branch passes its release gates.
+### Hosted verification and remaining release work
+
+The implementation commit passed CI, E2E, production build, dead-code checks,
+full Supabase replay and both preview deployments. The new operations SQL gauntlet
+also passed on the hosted Supabase preview with every fixture rolled back. All
+three preview function definitions match the locally validated database exactly.
+The preview controls remain false and no organization was provisioned.
+
+The advisor reports no warnings or errors on the operations objects. Its
+[RLS-without-policy information](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
+for the private singleton is intentional: all direct API-role access is revoked
+and the service-only RPCs provide the boundary. Existing authenticated definer
+warnings on other commands and unused-index information are not claimed resolved.
+
+After Taio signed in, the Nexez production Inngest Apps page showed no registered
+apps. The exact `https://app.nexez.ai/api/inngest` sync form is prepared, but has
+not been submitted. Registering the existing endpoint starts its hosted schedules;
+this is part of the pending production release, with scanner pilot controls still
+disabled. A successful signed recovery must be observed after registration.
+
+Production schema and deployment for this slice remain pending approval. Synthetic
+and preview tests do not prove hosted scheduling, delivered alerts, pilot usefulness
+or unit economics. Preview HTTP access is protected by Vercel authentication and
+must be checked through an authorized session, without disabling that protection.
