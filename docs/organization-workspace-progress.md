@@ -375,7 +375,7 @@ decisions above. The detailed rollout and recovery procedure is in `docs/inngest
   No workflow changes are needed. Full Supabase replay, build and dead-code checks
   remain CI gates under the repository's documented sandbox limitations.
 
-### Hosted verification and remaining release work
+### Hosted verification and registration follow-up
 
 The implementation commit passed CI, E2E, production build, dead-code checks,
 full Supabase replay and both preview deployments. The new operations SQL gauntlet
@@ -389,13 +389,27 @@ for the private singleton is intentional: all direct API-role access is revoked
 and the service-only RPCs provide the boundary. Existing authenticated definer
 warnings on other commands and unused-index information are not claimed resolved.
 
-After Taio signed in, the Nexez production Inngest Apps page showed no registered
-apps. The exact `https://app.nexez.ai/api/inngest` sync form is prepared, but has
-not been submitted. Registering the existing endpoint starts its hosted schedules;
-this is part of the pending production release, with scanner pilot controls still
-disabled. A successful signed recovery must be observed after registration.
+After approval, PR #284 merged as `dc2e3ebcac55f0cb100797f742c8251ff5b31d90`
+on September 8, 2026. The reviewed operations migration was applied in production
+and its stored SQL and function definitions verified. The production deployment,
+main CI, Supabase checks and release certification passed. Actual five-minute
+maintenance invocations advanced the cleanup marker; all pilot controls stayed
+false. The optional Stripe price catalog check was skipped because its CI secret
+was unavailable, so that check is not claimed verified.
 
-Production schema and deployment for this slice remain pending approval. Synthetic
-and preview tests do not prove hosted scheduling, delivered alerts, pilot usefulness
-or unit economics. Preview HTTP access is protected by Vercel authentication and
-must be checked through an authorized session, without disabling that protection.
+The initial personal Inngest session hid the Vercel-managed account. Opening the
+existing Vercel resource and clearing the personal session exposed its deployment
+sync history. Automatic syncs had targeted the Vercel branch hostname and failed.
+Manual registration at `https://app.nexez.ai/api/inngest` authenticated correctly,
+then revealed that the batch function requested eight concurrent steps against an
+account limit of five. The follow-up reduces the total cap to five, keeps the
+per-organization cap of three, and documents the production-only serve origin.
+A real SDK registration test reproduces the old rejection and checks all function
+configurations, the canonical host, and four invalid-signature cases. All 5,272
+root tests, TypeScript and changed-file ESLint passed, with one existing live
+benchmark skipped. Hosted app registration and a successful current-deployment
+recovery still need verification after the follow-up deploys.
+
+Delivered alerts, pilot usefulness and unit economics remain unverified. Preview
+HTTP access is protected by Vercel authentication and must be checked through an
+authorized session, without disabling that protection.
