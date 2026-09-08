@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, Check, Loader2, Minus, X } from 'lucide-react'
 import { appUrl } from '../../lib/site'
+import { scanUrlPrefill } from '../../lib/scan-funnel'
 
 /**
  * Homepage hero scanner. Thin, marketing-weight wrapper over the same public
@@ -153,6 +154,11 @@ export function HeroScan() {
   const [error, setError] = useState('')
   const [retryAfter, setRetryAfter] = useState(0)
   const [result, setResult] = useState<ScanResult | null>(null)
+
+  useEffect(() => {
+    const prefill = scanUrlPrefill(window.location.search)
+    if (prefill) setUrl((current) => current || prefill)
+  }, [])
 
   const runScan = useCallback(async (rawValue: string) => {
     const value = rawValue.trim()
