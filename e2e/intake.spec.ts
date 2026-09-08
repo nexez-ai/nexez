@@ -96,7 +96,7 @@ test.describe('authed interview loop', () => {
     if (cleanupErrors.length) throw new Error(`Could not fully clean up intake fixture: ${cleanupErrors.join('; ')}`)
   })
 
-  test('scratch interview → skip blocking gaps → draft summary → commit → builder', async ({ page }) => {
+  test('scratch interview → skip blocking gaps → draft summary → commit → builder', async ({ page, baseURL }) => {
     test.skip(!email || !password || !supabaseUrl || !supabaseKey, 'set E2E credentials and Supabase public keys')
     // Commit needs the SERVER's admin env (SUPABASE_SERVICE_ROLE_KEY) - absent
     // on a local dev server by design (prod-only secret), so this leg only runs
@@ -152,11 +152,16 @@ test.describe('authed interview loop', () => {
     await page.getByRole('button', { name: /Review in the builder/ }).first().click()
     const commitResponse = await committed
     expect(commitResponse.status(), 'Interview commit must create a private draft').toBe(200)
-    pageId = (await commitResponse.json()).pageId
+    // Read the persisted handoff because a full navigation can discard Chromium's
+    // response body before the test reads it, even after a successful commit.
+    const { data: session, error: sessionError } = await fixtureClient!.from('intake_sessions').select('page_id,status').eq('id', sessionId!).single()
+    expect(sessionError).toBeNull()
+    expect(session?.status).toBe('handed_off')
+    pageId = session!.page_id
     expect(pageId).toMatch(/^[0-9a-f-]{36}$/)
 
     // Commit materializes a DRAFT page and routes to the builder.
-    await page.waitForURL((url) => url.pathname === `/dashboard/${pageId}`, { timeout: 30_000, waitUntil: 'domcontentloaded' })
+    await page.waitForURL((url) => url.origin === new URL(baseURL!).origin && url.pathname === `/dashboard/${pageId}`, { timeout: 30_000, waitUntil: 'domcontentloaded' })
     const editor = page.getByTestId('listing-editor-screen')
     await expect(editor).toBeVisible({ timeout: 20_000 })
     const { data: draft, error } = await fixtureClient!.from('pages').select('name,is_published').eq('id', pageId!).single()

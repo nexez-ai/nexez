@@ -6,6 +6,9 @@ import { getPlanFeatureEntitlements, getSerializablePlanLimits, type PlanId } fr
 import { PlanProvider } from '../billing/PlanProvider'
 import { IntakeChat } from './IntakeChat'
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
+
 // ---------------------------------------------------------------------------
 // Fixtures - session states built through the real machine (no drift).
 
@@ -356,9 +359,8 @@ describe('IntakeChat - interview', () => {
     expect(calls.find((c) => c.url.includes('/messages'))?.payload).toEqual({ content: 'We are Apex Catering' })
   })
 
-  it('the handoff card commits and navigates to the builder', async () => {
-    const originalLocation = window.location
-    Object.defineProperty(window, 'location', { writable: true, value: { ...originalLocation, href: '' } })
+  it('the handoff card commits and keeps the builder on the current app host', async () => {
+    push.mockClear()
     const calls = mockFetch([
       noSessions,
       { match: (url, init) => url.endsWith('/api/agents/intake/threads') && init?.method === 'POST', status: 201, body: { ok: true, id: 'sess-1', state: scratchState() } },
@@ -376,8 +378,7 @@ describe('IntakeChat - interview', () => {
     await waitFor(() => expect(screen.getByText('Your draft is ready')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /Open builder/ }))
     await waitFor(() => expect(calls.some((c) => c.url.includes('/commit'))).toBe(true))
-    await waitFor(() => expect(String(window.location.href)).toContain('/dashboard/page-9'))
-    Object.defineProperty(window, 'location', { writable: true, value: originalLocation })
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/dashboard/page-9'))
   })
 
   it('offers to resume an existing interview and replays its transcript', async () => {

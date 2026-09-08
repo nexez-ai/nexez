@@ -10,6 +10,7 @@
 // carries readiness/positive, amber --amber flags blocking gaps, persimmon
 // --signal stays on interactive accents.
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowRight, CircleCheck, Globe2, ListChecks, Loader2, MessageCircleQuestion, Plug, Sparkles } from 'lucide-react'
 import { AgentChat, type AgentChatController, type AgentChatMessage, type AgentTurnResponse } from '../agent-chat'
 import { PlanBadge, UpgradeBanner } from '../billing/PlanGate'
@@ -17,7 +18,6 @@ import { usePlan } from '../billing/PlanProvider'
 import type { IntakeCard } from '../../lib/agents/intake'
 import { planAllows, type PlanId } from '../../lib/billing'
 import type { Gap, GapAnswer, IntakeState } from '../../lib/intake'
-import { appUrl } from '../../lib/site'
 
 type IntakeChatProps = {
   /** "Just take me to the form": the fork's escape hatch. */
@@ -49,6 +49,7 @@ function authNextHref(path: '/onboard' | '/login', returnPath: string): string {
 }
 
 export function IntakeChat({ onSwitchToForm, reinterviewPageId, initialSourceUrl = '', className = '' }: IntakeChatProps) {
+  const router = useRouter()
   // /create resolves this effective viewer plan on the server. Re-interviews
   // are owner-only, so the viewer is also the capability owner.
   const currentPlan = usePlan()
@@ -236,7 +237,8 @@ export function IntakeChat({ onSwitchToForm, reinterviewPageId, initialSourceUrl
     const response = await fetch(`/api/agents/intake/threads/${sessionIdRef.current}/commit`, { method: 'POST' })
     const json = await response.json()
     if (!response.ok) throw new Error(json.error || 'Could not open the builder.')
-    window.location.href = appUrl(json.builderPath || `/dashboard/${json.pageId}`)
+    // Keep the authenticated app host in previews and local development too.
+    router.push(`/dashboard/${encodeURIComponent(json.pageId)}`)
     return { message: 'Opening your draft in the builder...' }
   }
 
