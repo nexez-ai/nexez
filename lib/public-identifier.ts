@@ -9,7 +9,7 @@ export type PublicIdentifierNamespace = 'page_slug' | 'storefront_handle'
  */
 export const RESERVED_PUBLIC_IDENTIFIERS = new Set([
   // Current top-level app routes.
-  'acp', 'agent-readiness', 'agents', 'api', 'auth', 'checkout', 'compare',
+  'acp', 'agent-readiness', 'agents', 'api', 'auth', 'checkout', 'compare', 'console',
   'create', 'dashboard', 'design', 'developers', 'discovery', 'enterprise',
   'examples', 'growth-control-preview', 'how-it-works', 'integrations',
   'invite', 'leaderboard', 'learn', 'login', 'mcp', 'negotiate', 'nexxi',

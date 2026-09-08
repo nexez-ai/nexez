@@ -2,7 +2,7 @@ export const PUBLIC_IDENTIFIER_MIN = 5
 export const PUBLIC_IDENTIFIER_MAX = 63
 
 export const RESERVED_PUBLIC_IDENTIFIERS = new Set([
-  'acp', 'agent-readiness', 'agents', 'api', 'auth', 'checkout', 'compare',
+  'acp', 'agent-readiness', 'agents', 'api', 'auth', 'checkout', 'compare', 'console',
   'create', 'dashboard', 'design', 'developers', 'discovery', 'enterprise',
   'examples', 'growth-control-preview', 'how-it-works', 'integrations',
   'invite', 'leaderboard', 'learn', 'login', 'mcp', 'negotiate', 'nexxi', 'nexxi',

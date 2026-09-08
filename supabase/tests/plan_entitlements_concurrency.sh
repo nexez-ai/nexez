@@ -855,3 +855,7 @@ begin
 end
 $verify$;
 SQL
+
+# Organization scan entitlements are a separate authority boundary. Keep its
+# two-session suspension proof in the existing required concurrency invocation.
+NEXEZ_TEST_DATABASE_URL="$DATABASE_URL" python3 scripts/test-organization-read-boundary.py

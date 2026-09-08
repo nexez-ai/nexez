@@ -8,6 +8,9 @@ describe('isProtectedPath', () => {
     expect(isProtectedPath('/dashboard/abc/settings')).toBe(true)
     expect(isProtectedPath('/admin')).toBe(true)
     expect(isProtectedPath('/admin/support/ticket-1')).toBe(true)
+    expect(isProtectedPath('/console')).toBe(true)
+    expect(isProtectedPath('/console/agency-one/scans')).toBe(true)
+    expect(isProtectedPath('/consoles')).toBe(false)
   })
 
   it('leaves public surfaces open', () => {
@@ -24,6 +27,10 @@ describe('isProtectedPath', () => {
 })
 
 describe('resolveAuthGate', () => {
+  it('preserves the organization destination through sign-in', () => {
+    expect(resolveAuthGate('/console/agency-one/scans', '?cursor=next', false)).toEqual({ next: '/console/agency-one/scans?cursor=next' })
+    expect(resolveAuthGate('/console/agency-one/scans', '', true)).toBeNull()
+  })
   it('redirects an unauthenticated user off a protected route, preserving the path as next', () => {
     expect(resolveAuthGate('/dashboard', '', false)).toEqual({ next: '/dashboard' })
     expect(resolveAuthGate('/dashboard/4b6f000e', '', false)).toEqual({ next: '/dashboard/4b6f000e' })
