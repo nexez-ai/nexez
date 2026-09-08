@@ -42,7 +42,7 @@ const TOOLS = [
   {
     name: 'nexez_search',
     title: 'Search Nexez offers',
-    description: 'Search across all Nexez merchants for services/products matching a buyer request. Returns ranked listings with offers + agent.json URLs.',
+    description: 'Find services or products for a specific buyer request. Returns JSON text with ranked results, structured offers, listing slugs, agent.json URLs, and applied filters. Use nexez_directory for broad browsing, then nexez_get_page to inspect an exact offer before a dry run.',
     annotations: {
       title: 'Search Nexez offers',
       readOnlyHint: true,
@@ -54,18 +54,18 @@ const TOOLS = [
       properties: {
         q: { type: 'string', description: 'What the buyer is looking for' },
         location: { type: 'string', description: 'Optional city/region filter' },
-        limit: { type: 'number', description: 'Max results (default 10)' },
-        lat: { type: 'number' },
-        lng: { type: 'number' },
-        category: { type: 'string', enum: ['all', 'professional', 'consumer'] },
-        industry: { type: 'string' },
-        min_readiness: { type: 'integer', minimum: 0, maximum: 100 },
-        min_trust: { type: 'integer', minimum: 0, maximum: 100 },
-        verified: { type: 'boolean' },
+        limit: { type: 'number', description: 'Maximum results; defaults to 10 and is rounded down and clamped to 1-50.' },
+        lat: { type: 'number', description: 'Optional latitude context metadata. Does not filter or rerank results; use location for geographic filtering.' },
+        lng: { type: 'number', description: 'Optional longitude context metadata. Does not filter or rerank results; use location for geographic filtering.' },
+        category: { type: 'string', enum: ['all', 'professional', 'consumer'], description: 'Marketplace category; omit or use all to include both professional and consumer listings.' },
+        industry: { type: 'string', description: 'Case-insensitive substring filter on the published industry, for example plumbing.' },
+        min_readiness: { type: 'integer', minimum: 0, maximum: 100, description: 'Minimum listing readiness score (0-100); omit for no readiness threshold.' },
+        min_trust: { type: 'integer', minimum: 0, maximum: 100, description: 'Minimum marketplace trust score (0-100); omit for no trust threshold. Not a guarantee of seller performance.' },
+        verified: { type: 'boolean', description: 'Filter by seller verification signal: true requires a signal, false requires its absence; omit to include both.' },
         nexez_checkout_ready: { type: 'boolean', description: 'Owner payout state confirms Nexez-settled checkout readiness' },
         supports_checkout: { type: 'boolean', description: 'Deprecated compatibility filter: any actionable offer or provider handoff' },
-        supports_negotiation: { type: 'boolean' },
-        price_band: { type: 'string', enum: ['free', 'under_100', '100_500', '500_2000', '2000_plus', 'custom'] },
+        supports_negotiation: { type: 'boolean', description: 'Filter by negotiation availability: true for eligible listings, false for non-negotiable listings; omit to include both.' },
+        price_band: { type: 'string', enum: ['free', 'under_100', '100_500', '500_2000', '2000_plus', 'custom'], description: 'Filter by the listing marketplace price band. Inspect the exact offer for its price and currency; this is not a checkout quote.' },
       },
       required: ['q'],
     },
@@ -73,7 +73,7 @@ const TOOLS = [
   {
     name: 'nexez_directory',
     title: 'Browse the Nexez directory',
-    description: 'Browse the cross-merchant Nexez directory (optionally filtered by category, query, minimum readiness, or location).',
+    description: 'Browse published Nexez listings without requiring a buyer query. All filters are optional. Returns directory JSON text with listing summaries and readiness information. Use nexez_search when you need ranked matches for a specific buyer request.',
     annotations: {
       title: 'Browse the Nexez directory',
       readOnlyHint: true,
@@ -83,17 +83,17 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        category: { type: 'string', enum: ['all', 'professional', 'consumer'] },
-        q: { type: 'string' },
-        min_readiness: { type: 'number' },
-        location: { type: 'string' },
+        category: { type: 'string', enum: ['all', 'professional', 'consumer'], description: 'Marketplace category; defaults to all.' },
+        q: { type: 'string', description: 'Optional case-insensitive text filter across listing name, description, audience, and location.' },
+        min_readiness: { type: 'number', description: 'Minimum listing readiness score, normally 0-100; defaults to 0 (no threshold).' },
+        location: { type: 'string', description: 'Optional city or region filter matched against published location and service-area information.' },
       },
     },
   },
   {
     name: 'nexez_get_page',
     title: 'Inspect a Nexez listing',
-    description: "Fetch a listing's full structured agent manifest (seller profile, offers, actions) by slug.",
+    description: "Fetch one listing's structured agent manifest as JSON text, including seller profile, offers, configuration requirements, and published actions. Use a slug returned by search or directory; inspect exact offer identifiers and requirements before validation.",
     annotations: {
       title: 'Inspect a Nexez listing',
       readOnlyHint: true,
@@ -102,14 +102,14 @@ const TOOLS = [
     },
     inputSchema: {
       type: 'object',
-      properties: { slug: { type: 'string', description: 'Listing slug' } },
+      properties: { slug: { type: 'string', description: 'Exact published listing slug returned by nexez_search or nexez_directory, not a full URL.' } },
       required: ['slug'],
     },
   },
   {
     name: 'nexez_validate_checkout',
     title: 'Validate Nexez checkout',
-    description: 'Dry-run a checkout for an offer BEFORE paying - validates the offer, currency, and payment readiness. Never charges.',
+    description: 'Dry-run checkout for an exact published offer. Returns validation JSON text with offer readiness or errors and missing requirements. Inspect the offer with nexez_get_page first. Never charges or creates an order; a successful check is not a completed purchase.',
     annotations: {
       title: 'Validate Nexez checkout',
       readOnlyHint: true,
@@ -119,12 +119,12 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        slug: { type: 'string' },
-        offer: { type: 'string', description: 'e.g. services-0 or products-1' },
+        slug: { type: 'string', description: 'Exact published listing slug returned by discovery, not a full URL.' },
+        offer: { type: 'string', description: 'Exact offer key from the listing manifest, for example services-0 or products-1. Do not invent an index.' },
         query: { type: 'string', description: 'Optional buyer context' },
-        offerConfiguration: { type: 'object', description: 'Canonical buyer values required by the target offer configuration schema.' },
-        buyerEmail: { type: 'string' },
-        buyerReference: { type: 'string' },
+        offerConfiguration: { type: 'object', description: 'Buyer-selected configuration values keyed exactly as defined by the target offer configuration schema from nexez_get_page. Supply required fields for that offer; do not invent values or use a generic schema.' },
+        buyerEmail: { type: 'string', description: 'Optional buyer-provided email for checkout context. Omit when unnecessary; never invent personal details.' },
+        buyerReference: { type: 'string', description: 'Optional buyer-provided reference for checkout context; omit if none was supplied.' },
       },
       required: ['slug', 'offer'],
     },
@@ -132,7 +132,7 @@ const TOOLS = [
   {
     name: 'nexez_validate_negotiation',
     title: 'Validate Nexez negotiation',
-    description: 'Dry-run a negotiation proposal against the seller’s rules BEFORE submitting. Returns the rules evaluation. Never writes.',
+    description: 'Evaluate proposed terms against an exact offer and the seller\'s published rules in a forced dry run. Returns rules-evaluation JSON text or validation errors. Inspect the offer first and supply its required terms. Never submits a proposal, contacts a seller, or writes a negotiation.',
     annotations: {
       title: 'Validate Nexez negotiation',
       readOnlyHint: true,
@@ -142,12 +142,12 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        slug: { type: 'string' },
-        offer: { type: 'string' },
-        query: { type: 'string' },
-        budget: { type: 'string' },
-        timeline: { type: 'string' },
-        requestedTerms: { type: 'object', description: 'Optional structured terms the buyer wants the seller to review.' },
+        slug: { type: 'string', description: 'Exact published listing slug returned by discovery, not a full URL.' },
+        offer: { type: 'string', description: 'Exact offer key from the listing manifest, for example services-0 or products-1.' },
+        query: { type: 'string', description: 'Buyer request describing the desired work or product and relevant context.' },
+        budget: { type: 'string', description: 'Buyer-proposed budget or range as text, using the offer currency, for example USD 500. Do not invent a budget.' },
+        timeline: { type: 'string', description: 'Buyer-proposed delivery timing as text, for example within 4 weeks. Use requestedTerms.projectWeeks for a numeric duration rule.' },
+        requestedTerms: { type: 'object', description: 'Structured buyer proposal. Published seller rules may require scope (text or list of deliverables), revisionCount (whole number 0-1000), and projectWeeks (whole number 1-1000). Example: {"scope":"Logo and brand guide","revisionCount":2,"projectWeeks":4}. Inspect the offer rules; omit unknown terms rather than inventing them.' },
         contact: { type: 'string', description: 'Optional buyer contact route.' },
       },
       required: ['slug', 'offer'],
