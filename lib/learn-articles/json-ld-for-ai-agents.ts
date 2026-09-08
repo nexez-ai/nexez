@@ -9,7 +9,7 @@ export const jsonLdForAiAgents: LearnArticle = {
   dek: 'JSON-LD is the highest-leverage hour in the entire agent-readiness stack: typed, machine-verifiable facts about your business embedded in your pages. This is the practical version, with copy-paste templates for the types that matter, the implementation rules that keep them trusted, and the mistakes that get markup ignored.',
   category: 'Agent readiness',
   publishedAt: '2026-08-10',
-  updatedAt: '2026-08-10',
+  updatedAt: '2026-09-07',
   readMinutes: 10,
   blocks: [
     {
@@ -18,7 +18,7 @@ export const jsonLdForAiAgents: LearnArticle = {
     },
     {
       type: 'p',
-      text: 'For AI agents and answer engines it converts your website from prose they must interpret into typed facts they can assert, and that difference shows up in results: pages with structured data are cited roughly three times more often in AI answers, and it is the artifact with the best-documented consumers in the whole readiness stack.',
+      text: 'For AI agents and answer engines it converts your website from prose they must interpret into typed facts they can assert, and that difference shows up in results: industry studies have consistently found pages with structured data cited around three times more often in AI answers, and it is the artifact with the best-documented consumers in the whole readiness stack.',
     },
     {
       type: 'p',
@@ -31,7 +31,7 @@ export const jsonLdForAiAgents: LearnArticle = {
     { type: 'h2', text: 'Why JSON-LD and not the other formats' },
     {
       type: 'p',
-      text: 'Schema.org data can also be written as microdata or RDFa, woven attribute by attribute into your HTML. Do not. JSON-LD is Google\u2019s recommended format for a reason: it lives in one self-contained block, so it is easy to generate from a template, easy to validate, and impossible to break by restyling your page. Every template below is JSON-LD inside a script tag with type application/ld+json, placed anywhere in the page (head is conventional).',
+      text: 'Schema.org data can also be written as microdata or RDFa, woven attribute by attribute into your HTML. Do not. JSON-LD is Google’s recommended format for a reason: it lives in one self-contained block, so it is easy to generate from a template, easy to validate, and impossible to break by restyling your page. Every template below is JSON-LD inside a script tag with type application/ld+json, placed anywhere in the page (head is conventional).',
     },
     { type: 'h2', text: 'The four types that cover most businesses' },
     {
@@ -44,7 +44,7 @@ export const jsonLdForAiAgents: LearnArticle = {
       rows: [
         ['LocalBusiness / Organization', 'Identity: who you are, where, when open, how to reach you', 'Everyone'],
         ['Service + Offer', 'What you do and what it costs, as typed facts', 'Service businesses'],
-        ['Product + Offer', 'Catalog data: price, availability, ratings', 'Anyone selling products'],
+        ['Product + Offer', 'Catalog data: price, availability, customer ratings', 'Anyone selling products'],
         ['FAQPage', 'Your canonical answers to common questions', 'Everyone with a questions page'],
       ],
     },
@@ -110,7 +110,7 @@ export const jsonLdForAiAgents: LearnArticle = {
     { type: 'h3', text: '3. Product with an Offer: catalog data' },
     {
       type: 'p',
-      text: 'For anything sold as a product. This block is also what shopping pipelines cross-reference against your merchant feed, so the two must agree:',
+      text: 'For anything sold as a product. This block is also what shopping pipelines cross-reference against your merchant feed, so the two must agree, and note the aggregateRating below: it is legitimate here because it summarizes genuine customer reviews of a product, which is a different thing from rating your own business. That distinction is a hard rule and it is covered next:',
     },
     {
       type: 'code',
@@ -181,12 +181,12 @@ export const jsonLdForAiAgents: LearnArticle = {
       type: 'callout',
       tone: 'amber',
       title: 'The mistakes that get markup ignored',
-      text: 'The common failure modes: marking up content that is not on the page (the classic penalty case), fake or inflated aggregateRating values (cross-checkable and reputation-destroying), stale prices from hand-maintained blocks, invalid JSON from a hand-edited template (one trailing comma silently kills the whole block), and marking up only the homepage while the service and product pages that actually answer queries carry nothing.',
+      text: 'The common failure modes: marking up content that is not on the page (the classic penalty case), rating your own business (Google makes a page ineligible for stars when the entity being reviewed controls the reviews about itself, which is exactly what a testimonials block with an aggregateRating attached is doing; [reviews and ratings for AI agents](/learn/reviews-ratings-and-ai-agents) covers the rule and what to do instead), fake or inflated ratings on things you may legitimately mark up (cross-checkable and reputation-destroying), stale prices from hand-maintained blocks, invalid JSON from a hand-edited template (one trailing comma silently kills the whole block), and marking up only the homepage while the service and product pages that actually answer queries carry nothing.',
     },
     { type: 'h2', text: 'Validate before you trust it' },
     {
       type: 'p',
-      text: 'Never assume markup works; check it. Google\u2019s Rich Results Test shows what Google extracts and flags eligibility issues, and the schema.org validator checks vocabulary correctness beyond Google\u2019s subset. Paste your live URL, not your source file, so you test what crawlers actually receive after rendering. Then re-validate whenever your templates change; structured data breaks silently, and a JSON error takes the whole block out without any visible symptom on the page.',
+      text: 'Never assume markup works; check it. Google’s Rich Results Test shows what Google extracts and flags eligibility issues, and the schema.org validator checks vocabulary correctness beyond Google’s subset. Paste your live URL, not your source file, so you test what crawlers actually receive after rendering. Then re-validate whenever your templates change; structured data breaks silently, and a JSON error takes the whole block out without any visible symptom on the page.',
     },
     {
       type: 'cta',
@@ -221,7 +221,7 @@ export const jsonLdForAiAgents: LearnArticle = {
     {
       question: 'Does JSON-LD actually help with AI visibility?',
       answer:
-        'Yes, and it is among the best-evidenced tactics available. Industry studies consistently find pages with structured data cited around three times more often in AI answers, Google\u2019s guidance for its generative surfaces leans on the same fundamentals, and shopping pipelines cross-check it against product feeds. It is typically the highest-leverage single hour in the whole [GEO playbook](/learn/generative-engine-optimization).',
+        'Yes, and it is among the best-evidenced tactics available. Industry studies consistently find pages with structured data cited around three times more often in AI answers, Google’s guidance for its generative surfaces leans on the same fundamentals, and shopping pipelines cross-check it against product feeds. It is typically the highest-leverage single hour in the whole [GEO playbook](/learn/generative-engine-optimization).',
     },
     {
       question: 'Where do I put JSON-LD on my website?',
@@ -239,9 +239,14 @@ export const jsonLdForAiAgents: LearnArticle = {
         'Four cover most needs: the most specific LocalBusiness subtype for identity, Service with nested Offer blocks for what you do and charge, Product with Offer if you sell goods, and FAQPage for your questions page. Ship those correctly, validate them, and only then consider additional types like Event or Review where they genuinely apply.',
     },
     {
+      question: 'Can I add review or rating markup for my own business?',
+      answer:
+        'Not for reviews about your own business that you control. Google states that when the entity being reviewed controls the reviews about itself, those pages are ineligible for the star feature, and that local business ratings must come from users rather than being created, curated or compiled by human editors. Product reviews are different: genuine customer reviews of a product you sell can carry aggregateRating. The full rule, including the inverted regime for product sellers, is in [reviews and ratings for AI agents](/learn/reviews-ratings-and-ai-agents).',
+    },
+    {
       question: 'Can wrong structured data hurt me?',
       answer:
-        'Yes, in two ways. Markup that misrepresents the visible page violates Google\u2019s spam policies and can cost you rich results eligibility. And factually stale markup, like an outdated price, gets repeated verbatim by assistants, creating wrong answers about your own business. Accurate-and-automated beats extensive-and-stale every time; a [free scan](/scan) shows what your markup currently tells agents.',
+        'Yes, in two ways. Markup that misrepresents the visible page violates Google’s spam policies and can cost you rich results eligibility. And factually stale markup, like an outdated price, gets repeated verbatim by assistants, creating wrong answers about your own business. Accurate-and-automated beats extensive-and-stale every time; a [free scan](/scan) shows what your markup currently tells agents.',
     },
   ],
 }
