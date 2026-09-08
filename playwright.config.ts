@@ -33,6 +33,7 @@ try {
 // (nexez.app) since the [slug]/agent-page specs are the core; override with
 // E2E_BASE_URL to target a specific host (e.g. app.nexez.ai for authed flows).
 const isLiveTest = !!process.env.TEST_LIVE
+const isCi = Boolean(process.env.CI)
 const baseURL = process.env.E2E_BASE_URL || (isLiveTest ? 'https://nexez.app' : 'http://127.0.0.1:3000')
 
 // LLM config for the local dev server is sourced from the environment — never
@@ -56,6 +57,9 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: 'list',
+  // Browser traces and error snapshots can contain live passwords and tokens.
+  // Public CI keeps masked console diagnostics; detailed evidence stays local.
+  preserveOutput: isCi ? 'never' : 'always',
   timeout: 60_000,
   expect: { timeout: 15_000 },
   use: {
@@ -63,8 +67,8 @@ export default defineConfig({
     browserName: 'chromium',
     viewport: { width: 1280, height: 800 },
     navigationTimeout: 60_000,
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    trace: isCi ? 'off' : 'retain-on-failure',
+    screenshot: isCi ? 'off' : 'only-on-failure',
   },
   // For live tests (TEST_LIVE=1), skip starting local dev server and use the deployed baseURL.
   // For local: reuses a running dev server if one is already up, otherwise boots `npm run dev`.
