@@ -241,10 +241,12 @@ the server receives the bounded text input and stores only normalized origins.
   overlong rules and oversized files stop the relevant work. Robots redirects must
   remain on the same registrable domain and `/robots.txt` path. Glob matching avoids
   attacker-controlled regular-expression backtracking.
-- Each scan has a 28-second network deadline, 32 transport attempts and 3 MiB of
+- Each org scan has a 28-second network deadline, 32 transport attempts and 3 MiB of
   processed response bytes. Existing per-file caps and redirect limits still apply.
   Successful domains have an organization-specific 24-hour cooldown. The transient
   shared limiter and cooldown use privately salted domain hashes.
+  Default anonymous callers use a 20-second network deadline, leaving time for
+  lease cleanup inside their existing 30-second route budget.
 
 ### Data lifecycle and operations
 

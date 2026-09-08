@@ -21,7 +21,9 @@ export class ScanNetworkError extends Error {
 export function createScanNetworkContext(token: string, orgId: string | null = null, client?: SupabaseClient) {
   let admin: SupabaseClient
   try { admin = client ?? createAdminClient() } catch { throw new ScanNetworkError('network_error') }
-  const deadline = AbortSignal.timeout(28_000)
+  // Anonymous routes have a 30-second invocation budget. Leave room for
+  // validation and the bounded lease-release request after collection stops.
+  const deadline = AbortSignal.timeout(orgId ? 28_000 : 20_000)
   const stop = new AbortController()
   const signal = AbortSignal.any([deadline, stop.signal])
   const domains = new Map<string, Promise<void>>()
