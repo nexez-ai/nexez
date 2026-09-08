@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { loginWithPassword } from './auth'
 
 // Intake interview smoke (spec §10). Three layers:
 //   1. The /create fork renders and switches (always runs, unauthenticated).
@@ -9,11 +10,12 @@ import { createClient } from '@supabase/supabase-js'
 //      E2E_EMAIL/E2E_PASSWORD like the rest of the authed suite. Deterministic
 //      mode (no LLM) drives it, so the loop is stable; LLM-mapped stated fields
 //      are covered by the lib/route suites and the live-verify pass.
-// Cleanup: when SUPABASE_SERVICE_ROLE_KEY is present, the created draft page +
-// intake session are deleted afterward (never leaves test data behind).
+// Cleanup uses the test seller's RLS permissions and runs after failures too.
 
 const email = process.env.E2E_EMAIL
 const password = process.env.E2E_PASSWORD
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 test.describe('create fork (talk vs form)', () => {
   test('/create defaults to Talk it through and switches to the wizard', async ({ page }) => {
@@ -62,8 +64,40 @@ test.describe('create fork (talk vs form)', () => {
 })
 
 test.describe('authed interview loop', () => {
+  let fixtureClient: SupabaseClient | null = null
+  let sessionId: string | null = null
+  let pageId: string | null = null
+
+  test.beforeAll(async () => {
+    if (!process.env.TEST_LIVE || !email || !password || !supabaseUrl || !supabaseKey) return
+    fixtureClient = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const { data, error } = await fixtureClient.auth.signInWithPassword({ email, password })
+    if (error || !data.user) throw new Error(`Could not authenticate intake fixture: ${error?.message || 'no user returned'}`)
+  })
+
+  test.afterAll(async () => {
+    if (!fixtureClient) return
+    const cleanupErrors: string[] = []
+    if (sessionId) {
+      // Recover the draft ID even if the test failed during builder navigation.
+      const { data, error } = await fixtureClient.from('intake_sessions').select('page_id').eq('id', sessionId).single()
+      if (error) cleanupErrors.push(`session lookup: ${error.message}`)
+      pageId ??= data?.page_id ?? null
+      const removed = await fixtureClient.from('intake_sessions').delete().eq('id', sessionId).select('id').single()
+      if (removed.error || removed.data?.id !== sessionId) cleanupErrors.push(`session: ${removed.error?.message || 'row not returned'}`)
+    }
+    if (pageId) {
+      const { data, error } = await fixtureClient.from('pages').delete().eq('id', pageId).eq('is_published', false).select('id').single()
+      if (error || data?.id !== pageId) cleanupErrors.push(`draft: ${error?.message || 'row not returned'}`)
+    }
+    await fixtureClient.auth.signOut({ scope: 'local' })
+    if (cleanupErrors.length) throw new Error(`Could not fully clean up intake fixture: ${cleanupErrors.join('; ')}`)
+  })
+
   test('scratch interview → skip blocking gaps → draft summary → commit → builder', async ({ page }) => {
-    test.skip(!email || !password, 'set E2E_EMAIL and E2E_PASSWORD to run the authed intake E2E')
+    test.skip(!email || !password || !supabaseUrl || !supabaseKey, 'set E2E credentials and Supabase public keys')
     // Commit needs the SERVER's admin env (SUPABASE_SERVICE_ROLE_KEY) - absent
     // on a local dev server by design (prod-only secret), so this leg only runs
     // against a deployment: TEST_LIVE=1 E2E_BASE_URL=https://app.nexez.ai.
@@ -71,16 +105,17 @@ test.describe('authed interview loop', () => {
     test.skip(!process.env.TEST_LIVE, 'commit needs the deployed server - run with TEST_LIVE=1 E2E_BASE_URL=https://app.nexez.ai')
     test.setTimeout(300_000)
 
-    await page.goto('/login', { waitUntil: 'domcontentloaded' })
-    await page.locator('input[type="email"]').fill(email!)
-    await page.locator('input[type="password"]').fill(password!)
-    await page.locator('button[type="submit"]').first().click()
-    await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
+    await loginWithPassword(page, { email: email!, password: password! })
 
     const hydrated = page.waitForResponse((r) => r.url().includes('/api/agents/intake/threads'))
     await page.goto('/create', { waitUntil: 'domcontentloaded' })
     await hydrated
+    const created = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/agents/intake/threads' && r.request().method() === 'POST')
     await page.getByText('Start from scratch').click()
+    const response = await created
+    expect(response.status()).toBe(201)
+    sessionId = (await response.json()).id
+    expect(sessionId).toMatch(/^[0-9a-f-]{36}$/)
 
     // The deterministic interviewer asks the machine's first blocking batch.
     await expect(page.getByRole('heading', { name: 'Nexez intake' })).toBeVisible({ timeout: 20_000 })
@@ -113,23 +148,20 @@ test.describe('authed interview loop', () => {
     }
 
     await expect(page.getByRole('button', { name: /Review in the builder/ }).first()).toBeVisible({ timeout: 20_000 })
+    const committed = page.waitForResponse((r) => new URL(r.url()).pathname === `/api/agents/intake/threads/${sessionId}/commit` && r.request().method() === 'POST')
     await page.getByRole('button', { name: /Review in the builder/ }).first().click()
+    const commitResponse = await committed
+    expect(commitResponse.status(), 'Interview commit must create a private draft').toBe(200)
+    pageId = (await commitResponse.json()).pageId
+    expect(pageId).toMatch(/^[0-9a-f-]{36}$/)
 
     // Commit materializes a DRAFT page and routes to the builder.
-    await page.waitForURL(/\/dashboard\/[0-9a-f-]{36}/, { timeout: 30_000 })
-    const pageId = page.url().match(/\/dashboard\/([0-9a-f-]{36})/)?.[1]
-    expect(pageId).toBeTruthy()
-    await expect(page.getByRole('heading', { name: 'Edit listing' })).toBeVisible({ timeout: 20_000 })
-
-    // Cleanup (service-role env only): the draft page + its interview session.
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (url && serviceKey && pageId) {
-      const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
-      await admin.from('intake_sessions').delete().eq('page_id', pageId)
-      await admin.from('pages').delete().eq('id', pageId)
-    } else {
-      console.warn(`[intake e2e] no SUPABASE_SERVICE_ROLE_KEY - leaving draft page ${pageId} for manual cleanup`)
-    }
+    await page.waitForURL((url) => url.pathname === `/dashboard/${pageId}`, { timeout: 30_000, waitUntil: 'domcontentloaded' })
+    const editor = page.getByTestId('listing-editor-screen')
+    await expect(editor).toBeVisible({ timeout: 20_000 })
+    const { data: draft, error } = await fixtureClient!.from('pages').select('name,is_published').eq('id', pageId!).single()
+    expect(error).toBeNull()
+    expect(draft?.is_published).toBe(false)
+    await expect(editor.getByRole('heading', { name: draft!.name, exact: true })).toBeVisible()
   })
 })

@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { parseEnv } from 'node:util'
 
 // The authed specs read E2E_EMAIL/E2E_PASSWORD from the environment. Locally
 // those live in the gitignored .env.local (the standing "E2E Runner" test
@@ -14,15 +15,15 @@ try {
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
   ])
-  // cwd-relative like testDir below — playwright runs from the repo root.
-  for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
-    const match = line.match(/^([A-Z][A-Z0-9_]+)=(.*)$/)
-    if (match && localE2EKeys.has(match[1]) && !process.env[match[1]]) {
-      process.env[match[1]] = match[2].trim()
+  // cwd-relative like testDir below. Playwright runs from the repo root.
+  // Use dotenv parsing so quoted credentials do not include literal quotes.
+  for (const [key, value] of Object.entries(parseEnv(readFileSync('.env.local', 'utf8')))) {
+    if (localE2EKeys.has(key) && process.env[key] === undefined) {
+      process.env[key] = value
     }
   }
 } catch {
-  // no .env.local (CI) — the authed specs self-skip without creds
+  // No .env.local (CI). The authed specs self-skip without credentials.
 }
 
 // Support live deployed testing via TEST_LIVE=1 (skips the local webServer).

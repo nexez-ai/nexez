@@ -54,7 +54,7 @@ function dbWith(row: any, updates: any[] = []) {
 
 function adminWith(inserted: any[]) {
   return createSupabaseMock((ctx) => {
-    if (ctx.table === 'pages' && ctx.op === 'select') return { data: null } // slug free
+    if (ctx.table === 'rpc:nz_public_identifier_availability') return { data: [{ available: true, reason: 'available' }] }
     if (ctx.table === 'pages' && ctx.op === 'insert') {
       inserted.push(ctx.payload)
       return { data: { id: 'page-new', slug: ctx.payload.slug } }
