@@ -135,7 +135,7 @@ wider coverage gap. Workflow-write access remains an outstanding platform prereq
 
 ### Local evidence for Slice A
 
-- 5,130 root tests passed. The existing opt-in live website importer benchmark
+- 5,133 root tests passed. The existing opt-in live website importer benchmark
   stayed skipped. Five local-server tests initially hit the sandbox's loopback
   restriction; the complete suite passed when rerun with loopback access.
 - TypeScript, ESLint, palette and em-dash checks passed. All 46 mobile platform
@@ -158,6 +158,20 @@ The local database fixtures do not replace the full Supabase migration replay.
 Production Supabase Auth, physical devices, real partner data and scanner execution
 are not covered by this browser fixture. Root production build and dead-code checks
 remain CI gates under the repository's documented sandbox limitations.
+
+### E2E prerequisite found during CI
+
+The initial PR's application build, dead-code check, mobile checks and full Supabase
+replay passed, including the new SQL and concurrency tests. Its existing Settings /
+Agent Lab E2E flow exposed a saved-history race: a successful save completed about
+30 milliseconds before an older, empty history response overwrote the visible list.
+The saved database row was not lost, but the interface reported zero saved runs.
+
+A narrow follow-up refreshes history after persistence and ignores superseded
+responses, loading changes and errors. Three deterministic component cases first
+reproduced the failure and then passed for a late empty snapshot, server failure
+and network failure. The original E2E assertion is unchanged. This prerequisite
+fix is recorded separately from organization authorization.
 
 ## Next slice: scanner execution and results
 
