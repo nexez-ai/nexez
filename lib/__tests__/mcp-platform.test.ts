@@ -79,6 +79,22 @@ describe('handlePlatformMcpRequest', () => {
     expect(tools.every((tool) => tool.annotations.openWorldHint)).toBe(true)
   })
 
+  it.each(['platform', 'chatgpt'] as const)('documents every advertised input on the %s surface without making browse filters required', async (surface) => {
+    const response = await handlePlatformMcpRequest({ id: 1, method: 'tools/list' }, base, { surface })
+    const tools = (response.result as { tools: Array<{
+      name: string
+      inputSchema: { properties: Record<string, { description?: string }>; required?: string[] }
+    }> }).tools
+    for (const tool of tools) {
+      for (const [name, property] of Object.entries(tool.inputSchema.properties)) {
+        expect(property.description?.trim().length, `${tool.name}.${name}`).toBeGreaterThan(15)
+      }
+    }
+    expect(tools.find((tool) => tool.name === 'nexez_directory')?.inputSchema.required ?? []).toEqual([])
+    expect(tools.find((tool) => tool.name === 'nexez_search')?.inputSchema.properties.lat.description).toContain('Does not filter or rerank')
+    expect(tools.find((tool) => tool.name === 'nexez_validate_negotiation')?.inputSchema.properties.requestedTerms.description).toContain('projectWeeks')
+  })
+
   it('advertises five discovery-only tools on the ChatGPT surface', async () => {
     const tools = ((await chatGptCall('tools/list')).result as {
       tools: Array<{
