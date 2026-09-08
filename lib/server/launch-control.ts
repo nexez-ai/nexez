@@ -22,6 +22,7 @@ import {
 import { APP_HOST, AGENT_RUNTIME_HOST, MARKETING_HOST } from '../site'
 import { getStripeBillingReadiness } from './billing-readiness'
 import { getMarketplaceCurationQueue } from './marketplace-curation'
+import { getOrganizationScanOperationChecks } from './organization-scan-operations'
 import { hasSecretCryptoKey } from './secret-crypto'
 import { hasReleaseCertificationSecret } from './release-certification-auth'
 import { createAdminClient, hasSupabaseAdminEnv } from '../../utils/supabase/admin'
@@ -148,10 +149,11 @@ const TERMINAL_NEGOTIATION_STATUSES = new Set(['complete', 'refunded'])
 
 export async function getLaunchControlSnapshot(): Promise<LaunchControlSnapshot> {
   const generatedAt = new Date().toISOString()
-  const [configurationInput, marketplaceCuration, stripeWebhookReadiness] = await Promise.all([
+  const [configurationInput, marketplaceCuration, stripeWebhookReadiness, scannerOperations] = await Promise.all([
     getConfigurationInput(),
     getMarketplaceCurationQueue(),
     verifyStripeWebhookEndpoints(),
+    getOrganizationScanOperationChecks(),
   ])
   const configuration = buildConfigurationChecks(configurationInput)
 
@@ -163,6 +165,7 @@ export async function getLaunchControlSnapshot(): Promise<LaunchControlSnapshot>
   const operations = [
     ...buildOperationalChecks(metrics, availability, generatedAt),
     buildMarketplaceCurationCheck(marketplaceCuration),
+    ...scannerOperations,
   ]
   const certification = buildCertificationChecks(metrics, availability, configuration)
   const summary = summarizeLaunchChecks([...configuration, ...operations, ...certification])

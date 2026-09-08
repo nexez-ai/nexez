@@ -1,6 +1,7 @@
 import { inngest } from '../client'
 import { ORGANIZATION_SCAN_BATCH } from '../events'
 import { hasOrganizationScanRunner, organizationScanEventSchema, pendingOrganizationScans, processNextOrganizationScan } from '@/lib/server/organization-scan-worker'
+import { recordOrganizationScanRecovery } from '@/lib/server/organization-scan-operations'
 
 export const runOrganizationScanBatch = inngest.createFunction({
   id: 'organization-scan-batch', retries: 2, triggers: { event: ORGANIZATION_SCAN_BATCH },
@@ -24,5 +25,6 @@ export const recoverOrganizationScans = inngest.createFunction({
   if (!hasOrganizationScanRunner()) return { skipped: 'runner_unavailable' }
   const due = await step.run('recover-and-dispatch', pendingOrganizationScans)
   if (due.length) await step.sendEvent('wake-batches', due.map((data) => ({ name: ORGANIZATION_SCAN_BATCH, data })))
+  await step.run('record-recovery', recordOrganizationScanRecovery)
   return { dispatched: due.length }
 })
