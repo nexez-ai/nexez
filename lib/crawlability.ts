@@ -21,24 +21,24 @@ type RobotsGroup = { agents: string[]; rules: RobotsRule[] }
 function patternMatchLength(pattern: string, path: string): number {
   if (!pattern) return -1
   const anchored = pattern.endsWith('$')
-  const source = (anchored ? pattern.slice(0, -1) : pattern)
-    .split('*')
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*')
-  try {
-    return new RegExp(`^${source}${anchored ? '$' : ''}`).test(path)
-      ? pattern.replace(/[*$]/g, '').length
-      : -1
-  } catch {
-    return -1
+  const source = anchored ? pattern.slice(0, -1) : `${pattern}*`
+  // Glob matching avoids an attacker-controlled backtracking regular expression.
+  let i = 0; let j = 0; let star = -1; let retry = 0
+  while (i < path.length) {
+    if (j < source.length && source[j] === path[i]) { i += 1; j += 1 }
+    else if (source[j] === '*') { star = j; j += 1; retry = i }
+    else if (star >= 0) { j = star + 1; retry += 1; i = retry }
+    else return -1
   }
+  while (source[j] === '*') j += 1
+  return j === source.length ? pattern.replace(/[*$]/g, '').length : -1
 }
 
 /** Group-aware robots evaluation with Allow overrides and longest-rule wins. */
-export function parseRobotsForAgentBots(robotsTxt: string | null): Record<AgentBot, boolean> {
-  const result = {} as Record<AgentBot, boolean>
+function robotsAccess(robotsTxt: string | null, bots: readonly string[], path: string): Record<string, boolean> {
+  const result: Record<string, boolean> = {}
   if (!robotsTxt || !robotsTxt.trim()) {
-    for (const bot of AGENT_BOTS) result[bot] = true
+    for (const bot of bots) result[bot] = true
     return result
   }
 
@@ -70,7 +70,7 @@ export function parseRobotsForAgentBots(robotsTxt: string | null): Record<AgentB
     }
   }
 
-  for (const bot of AGENT_BOTS) {
+  for (const bot of bots) {
     const token = bot.toLowerCase()
     const matching = groups
       .map((candidate) => ({
@@ -89,7 +89,7 @@ export function parseRobotsForAgentBots(robotsTxt: string | null): Record<AgentB
 
     let winner: { allow: boolean; length: number } | null = null
     for (const rule of rules) {
-      const length = patternMatchLength(rule.pattern, '/')
+      const length = patternMatchLength(rule.pattern, path)
       if (length < 0) continue
       if (!winner || length > winner.length || (length === winner.length && rule.allow)) {
         winner = { allow: rule.allow, length }
@@ -99,6 +99,14 @@ export function parseRobotsForAgentBots(robotsTxt: string | null): Record<AgentB
   }
 
   return result
+}
+
+export function parseRobotsForAgentBots(robotsTxt: string | null): Record<AgentBot, boolean> {
+  return robotsAccess(robotsTxt, AGENT_BOTS, '/') as Record<AgentBot, boolean>
+}
+
+export function isRobotPathAllowed(robotsTxt: string | null, agent: string, path: string): boolean {
+  return robotsAccess(robotsTxt, [agent], path)[agent] ?? true
 }
 
 export type CrawlDimension = 'discovery' | 'understanding' | 'transactability' | 'trust'

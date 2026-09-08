@@ -173,19 +173,155 @@ reproduced the failure and then passed for a late empty snapshot, server failure
 and network failure. The original E2E assertion is unchanged. This prerequisite
 fix is recorded separately from organization authorization.
 
-## Next slice: scanner execution and results
+### Slice A release
 
-Group B adds same-organization batches/targets, normalized paste/CSV input, atomic
-quota reservation and canonical idempotency, durable Inngest execution, bounded
-target claims and leases, cancellation, retry/recovery and safe results. It must
-also implement shared target pressure, runtime stop controls, cost/latency metrics
-and retention cleanup before enabling scanning.
+PR #282 merged at GitHub's `2026-09-08T03:20:01Z`, commit
+`2d27842527116f826a51b1c5eea36a442821085e`. The approved foundation migration was
+applied and verified before deployment. Production CI, full Supabase replay,
+mobile checks and Vercel deployment passed. Release certification passed 13 checks;
+the optional Stripe catalog check was skipped because its CI secret was absent.
+Both production controls remained disabled, with no organization or entitlement
+provisioned. Ten post-release HTTP smoke scenarios and the sign-in return path passed.
 
-Its acceptance evidence must include wrong-organization denial, URL/SSRF tests,
-parallel quota tests, abandoned-worker recovery, no resurrection after deletion,
-safe logs/storage, and real bounded-domain results. At least 95 percent of accepted
-work must reach a documented terminal outcome within the configured budget; useful
-results and terminal failures are measured separately.
+## Slice B: scanner execution and results
+
+The scanner now accepts pasted origins or one-column CSV, reserves quota, runs
+durable target work and displays a versioned readiness score with fixed findings.
+Operators can cancel pending work, delete a batch early, and select a successful
+result for manual follow-up. Uploaded CSV files are parsed in browser memory;
+the server receives the bounded text input and stores only normalized origins.
+
+### Commands and authority
+
+- `/api/organizations/[orgId]/scan-batches` lists recent batches and accepts submissions.
+  The batch-specific route reads results, cancels, selects follow-ups and deletes.
+  Every route verifies the current session, and every SQL command checks current
+  database membership. Reads and errors are private and `no-store`.
+- Batches and targets use organization-scoped composite foreign keys. The original
+  membership ID and actor remain attached to the batch; deleting and re-creating
+  membership cannot revive its old jobs. Base-table access stays revoked for all
+  API roles. User commands and worker commands have separate execute grants.
+- Submission locks runtime, organization, membership and entitlement before
+  atomically reserving quota and creating the batch, targets and receipt. The
+  default ceilings remain 50 per batch, 250 per org per UTC day, and 3 concurrent
+  targets per org. An additional durable 250-target actor limit spans organizations.
+- The org and UUID request key identify one canonical, sorted, deduplicated target
+  set. An exact replay returns the original receipt. A changed set returns 409;
+  a deleted or expired batch returns 410. Receipt lookup precedes fresh DNS checks
+  and runner availability so a lost response can be recovered during an outage.
+- Accepted targets spend quota even if cancelled, blocked or unsuccessful. Retries
+  and exact replays spend no additional quota. Deletion does not refund quota.
+
+### Durable work and target policy
+
+- Inngest events contain only org and batch UUIDs. Claim, network work and completion
+  occur inside a single step that returns only a progress boolean. Origins,
+  fetched content, scan results and authorization decisions are never memoized
+  as step output. The existing Inngest serve route registers both new functions.
+- Claims receive a unique 75-second lease and at most three network attempts.
+  Network errors retry after 30 seconds. Shared pressure defers without spending
+  an attempt. Completion rechecks current actor, membership, entitlement, runtime,
+  batch deadline and exact lease token. Revoked, cancelled, deleted and stale work
+  cannot write results. Counts are derived from target states, preventing drift.
+- The database queue acts as an outbox. A one-minute recovery job reserves up to
+  20 batches for dispatch, with a two-minute redispatch interval. Dropped sends and
+  abandoned leases recover without a new reservation. Batches stop accepting work
+  after 20 minutes; the periodic sweep terminalizes remaining work on its next run.
+- Inputs allow normalized public HTTP(S) origins on standard ports. Credentials,
+  paths, query strings, fragments, IP literals and reserved private suffixes are
+  rejected. Execution revalidates the origin. Every actual connection and redirect
+  checks public DNS answers and pins its socket to the validated address.
+- A shared database limiter covers every default signal-gathering caller, including
+  the anonymous and deep scanners. It permits at most 8 active scan tokens globally,
+  1 per registrable domain, 30 scan starts per domain per minute, and 4 redirect
+  domains per scan. Private suffixes distinguish hosted tenants. Missing or disabled
+  limiter state denies work. Network leases expire after 50 seconds.
+- `NexezBot` checks robots rules before the homepage and every auxiliary request.
+  Missing robots files (404/410) allow crawling. Denial, indeterminate responses,
+  overlong rules and oversized files stop the relevant work. Robots redirects must
+  remain on the same registrable domain and `/robots.txt` path. Glob matching avoids
+  attacker-controlled regular-expression backtracking.
+- Each scan has a 28-second network deadline, 32 transport attempts and 3 MiB of
+  processed response bytes. Existing per-file caps and redirect limits still apply.
+  Successful domains have an organization-specific 24-hour cooldown. The transient
+  shared limiter and cooldown use privately salted domain hashes.
+
+### Data lifecycle and operations
+
+Stored results contain only rubric version 2, a bounded score and 18 closed check
+IDs/status codes. All labels and suggested actions come from application copy.
+The database rejects fetched text, extra JSON fields, duplicate check IDs, unknown
+statuses and unbounded metrics. Redirect URLs, query strings, HTML, response
+headers and raw transport errors are absent from results and operational events.
+
+Targets and results expire after 90 days, and expired data is hidden before the
+cleanup job deletes it. Early deletion removes both tables' rows and retains only
+the receipt needed to reject a replay. Receipts expire after 90 days. Daily counters
+are retained for two days; shared windows for one day; cooldowns for 24 hours.
+Operational events retain only opaque identifiers, closed codes and bounded
+queue-wait/duration/byte/probe counters for 30 days. Submission, cancellation, deletion,
+revocation and follow-up audit records retain those minimal fields for 24 months,
+including the authenticated actor's pseudonymous UUID when present.
+
+The API emits closed quota-denial events, and scanner contexts emit separate
+limiter-unavailable events, through the existing observability sink without URLs,
+request keys or raw errors. Set that sink's retention to at most 30 days before
+pilot activation. `supabase/tests/organization_scan_metrics.sql` provides a bounded,
+read-only org usage report: reservations, outcomes, retries, pressure deferrals,
+queue/execute p95, processed bytes and probes. Dollar estimates remain null until
+an operator supplies observed per-attempt and per-GiB unit prices from the actual
+provider bill. These estimates exclude fixed plans and unallocated platform overhead;
+wall duration and processed bytes do not pretend to be exact provider CPU/egress meters.
+
+Before activation, the operator must approve this policy, confirm an incident
+owner and the `/support` complaint route, and verify the Inngest cron is registered
+on `https://app.nexez.ai/api/inngest`. The new `scan_policy_approved` flag defaults
+false, in addition to the existing disabled runtime and entitlement defaults.
+Check the event/signing keys and service-role environment before enabling a pilot.
+
+For a scanning incident, turn off `scan_submission_enabled` to deny new org
+claims and completion, or turn off `private.scan_network_controls.enabled` to
+stop all new scanner transport. Add a registrable domain to
+`private.scan_target_denylist` for a complaint. A request already on the wire may
+finish within its bounded deadline; an org result still requires fresh authority.
+Keep recovery running so retention and cancellation cleanup continue. Application
+rollback preserves additive data and leaves the pilot disabled.
+
+### Verification evidence and limits
+
+- Root suite: 5,208 tests passed before the browser-origin regression was added.
+  The existing opt-in live importer benchmark stayed skipped. TypeScript, ESLint,
+  palette and em-dash checks passed. Production build and dead-code remain CI gates.
+- The browser exposed Next's loopback URL reconstruction (`localhost` versus the
+  requested `127.0.0.1`). The origin check now uses the browser's Host header and
+  ignores `X-Forwarded-Host`; the focused API regression passed after this fix.
+- Fresh PostgreSQL 17 replay passed the lifecycle gauntlet, including wrong-org
+  access, exact/conflicting/deleted replay, quota rollback, result validation,
+  stale leases, cancellation, re-enrollment, revocation, kill switch and retention.
+- Real parallel sessions proved one batch from 12 simultaneous replays, a shared
+  250-target actor quota across orgs, three distinct org claims, blocking against
+  an uncommitted suspension, deletion without resurrection, eight global permits,
+  one per domain, idempotent permits and recoverable outbox dispatch.
+- The real Next UI, local Inngest server, synthetic auth adapter and PostgreSQL
+  commands completed a three-site public sample (example.com, nexez.ai, schema.org).
+  All three succeeded on attempt one. Target durations were 314, 1,991 and 419 ms;
+  processed bytes were 559, 296,421 and 3,308. Each stored result was 750 or 751 bytes,
+  containing only `score`, `checks` and `version`. Follow-up persisted with an audit
+  event; browser deletion left zero batch/target rows and one replay receipt.
+- The local Inngest callback needed the fixture's localhost redirect changed from
+  port 3000 to port 3117. The initial queue delay belongs to preview setup, not a
+  production performance measurement. Production auth and Inngest cloud execution
+  are separate deployment checks. No production org or scan data was created.
+- Mobile rendering and findings were inspected in both themes without overflow or
+  an error overlay. Component tests cover retry-key preservation, authorization
+  loss, late stale responses, follow-up and deletion confirmation.
+
+The SQL and concurrency suites run from the existing required entitlement test
+entry points, without a workflow edit. Full Supabase replay, advisors, build and
+dead-code checks must still pass in CI before release. The three-site sample is
+an integration check, not a representative capacity benchmark. Pilot acceptance
+still needs at least 95 percent of accepted targets reaching a documented outcome
+within the budget, with useful results and terminal failures reported separately.
 
 Pilot success then requires actionable findings, a selected real follow-up, repeat
 use or a scheduled next use within 14 days, and plausible unit economics. Scanner

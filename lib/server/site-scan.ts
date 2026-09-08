@@ -5,7 +5,7 @@ import { readBodyCapped } from './read-body-capped'
 
 export { readBodyCapped } from './read-body-capped'
 
-const SCAN_UA = 'Nexez Agent Readiness Scanner/2.0 (+https://nexez.ai/scan)'
+export const SCAN_UA = 'NexezBot/1.0 (+https://nexez.ai/scan)'
 
 export const HTML_BYTE_CAP = 512 * 1024
 export const ROBOTS_BYTE_CAP = 64 * 1024
@@ -190,14 +190,24 @@ function recordLooksMeaningful(value: unknown, kind: 'agent' | 'agent-card' | 'm
 // 3 hops is 19.5s, which still covers the usual http -> https -> www chain.
 const SAFE_FETCH_OPTIONS = { timeoutMs: 6500, pinnedDns: true, standardPortsOnly: true, maxRedirects: 2 } as const
 
-async function probeJson(url: string, kind: 'agent' | 'agent-card' | 'mcp' | 'openapi'): Promise<boolean> {
-  const res = await safeFetch(
+export type SiteScanOptions = {
+  signal?: AbortSignal
+  beforeRequest?: (url: string) => Promise<boolean>
+  onBodyBytes?: (bytes: number) => void
+}
+
+function scanFetch(url: string, init: RequestInit, options: SiteScanOptions) {
+  return safeFetch(url, { ...init, signal: options.signal }, { ...SAFE_FETCH_OPTIONS, beforeRequest: options.beforeRequest })
+}
+
+async function probeJson(url: string, kind: 'agent' | 'agent-card' | 'mcp' | 'openapi', options: SiteScanOptions): Promise<boolean> {
+  const res = await scanFetch(
     url,
     { headers: { 'User-Agent': SCAN_UA, Accept: 'application/json' } },
-    SAFE_FETCH_OPTIONS,
+    options,
   )
   if (!res || !res.ok) return false
-  const text = await readBodyCapped(res, JSON_BYTE_CAP)
+  const text = await readBodyCapped(res, JSON_BYTE_CAP, options.onBodyBytes)
   if (!text) return false
   try {
     return recordLooksMeaningful(JSON.parse(text), kind)
@@ -206,23 +216,23 @@ async function probeJson(url: string, kind: 'agent' | 'agent-card' | 'mcp' | 'op
   }
 }
 
-async function fetchCapped(url: string, maxBytes: number): Promise<string | null> {
-  const res = await safeFetch(url, { headers: { 'User-Agent': SCAN_UA } }, SAFE_FETCH_OPTIONS)
+async function fetchCapped(url: string, maxBytes: number, options: SiteScanOptions): Promise<string | null> {
+  const res = await scanFetch(url, { headers: { 'User-Agent': SCAN_UA } }, options)
   if (!res || !res.ok) return null
-  const text = await readBodyCapped(res, maxBytes)
+  const text = await readBodyCapped(res, maxBytes, options.onBodyBytes)
   return text && text.trim().length >= 20 ? text : null
 }
 
-async function fetchPage(url: string): Promise<{ status: number; ms: number; html: string; lastModified: string | null; finalUrl: string }> {
+async function fetchPage(url: string, options: SiteScanOptions): Promise<{ status: number; ms: number; html: string; lastModified: string | null; finalUrl: string }> {
   const started = Date.now()
-  const res = await safeFetch(
+  const res = await scanFetch(
     url,
     { headers: { 'User-Agent': SCAN_UA, Accept: 'text/html,application/xhtml+xml' } },
-    SAFE_FETCH_OPTIONS,
+    options,
   )
   const ms = Date.now() - started
   if (!res) return { status: 0, ms, html: '', lastModified: null, finalUrl: url }
-  const html = res.ok ? (await readBodyCapped(res, HTML_BYTE_CAP)) || '' : ''
+  const html = res.ok ? (await readBodyCapped(res, HTML_BYTE_CAP, options.onBodyBytes)) || '' : ''
   return { status: res.status, ms, html, lastModified: res.headers.get('last-modified'), finalUrl: res.url || url }
 }
 
@@ -236,7 +246,23 @@ export type SiteSignalsResult = {
   pageText: string
 }
 
-export async function gatherSiteSignals(rawUrl: string): Promise<SiteSignalsResult | { error: string }> {
+export async function gatherSiteSignals(rawUrl: string, options?: SiteScanOptions): Promise<SiteSignalsResult | { error: string }> {
+  if (options) return gatherSiteSignalsWithOptions(rawUrl, options)
+  const normalized = normalizeScanUrl(rawUrl)
+  const invalid = normalized ? getImportUrlError(normalized) : 'A valid URL is required'
+  if (invalid) return { error: invalid }
+  // Every default caller (including deep scan, subscribe and owner checks)
+  // shares the durable target limiter. Bulk workers supply their own lease.
+  const { createScanNetworkContext } = await import('./scan-network')
+  const network = createScanNetworkContext(crypto.randomUUID())
+  try {
+    const result = await gatherSiteSignalsWithOptions(rawUrl, network.options)
+    network.assertFinished()
+    return result
+  } finally { await network.close() }
+}
+
+async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOptions): Promise<SiteSignalsResult | { error: string }> {
   const url = normalizeScanUrl(rawUrl)
   if (!url) return { error: 'A valid URL is required' }
 
@@ -251,18 +277,18 @@ export async function gatherSiteSignals(rawUrl: string): Promise<SiteSignalsResu
   const started = Date.now()
   // Resolve the canonical page first. Artifact probes must use the final origin,
   // otherwise a common apex-to-www redirect produces false missing-file results.
-  const page = await fetchPage(url)
+  const page = await fetchPage(url, options)
   const finalUrl = page.finalUrl
   const finalParsedUrl = new URL(finalUrl)
   const origin = finalParsedUrl.origin
   const [agentJsonOk, wellKnownAgentJsonOk, wellKnownAgentCardOk, mcpJsonOk, openApiJsonOk, llmsTxt, robotsTxt] = await Promise.all([
-    probeJson(`${origin}/agent.json`, 'agent'),
-    probeJson(`${origin}/.well-known/agent.json`, 'agent'),
-    probeJson(`${origin}/.well-known/agent-card.json`, 'agent-card'),
-    probeJson(`${origin}/.well-known/mcp.json`, 'mcp'),
-    probeJson(`${origin}/openapi.json`, 'openapi'),
-    fetchCapped(`${origin}/llms.txt`, JSON_BYTE_CAP),
-    fetchCapped(`${origin}/robots.txt`, ROBOTS_BYTE_CAP),
+    probeJson(`${origin}/agent.json`, 'agent', options),
+    probeJson(`${origin}/.well-known/agent.json`, 'agent', options),
+    probeJson(`${origin}/.well-known/agent-card.json`, 'agent-card', options),
+    probeJson(`${origin}/.well-known/mcp.json`, 'mcp', options),
+    probeJson(`${origin}/openapi.json`, 'openapi', options),
+    fetchCapped(`${origin}/llms.txt`, JSON_BYTE_CAP, options),
+    fetchCapped(`${origin}/robots.txt`, ROBOTS_BYTE_CAP, options),
   ])
 
   const html = page.html

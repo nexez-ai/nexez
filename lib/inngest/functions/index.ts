@@ -4,5 +4,6 @@
 import { dispatchOutboundWebhooks } from './outbound-webhooks'
 import { processFreshnessNudge } from './freshness-nudge'
 import { regenerateFeeds } from './feed-regenerate'
+import { runOrganizationScanBatch, recoverOrganizationScans } from './organization-scans'
 
-export const inngestFunctions = [dispatchOutboundWebhooks, processFreshnessNudge, regenerateFeeds]
+export const inngestFunctions = [dispatchOutboundWebhooks, processFreshnessNudge, regenerateFeeds, runOrganizationScanBatch, recoverOrganizationScans]
