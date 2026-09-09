@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { after } from 'next/server'
-import { notFound, permanentRedirect } from 'next/navigation'
+import { notFound, permanentRedirect, redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import {
   getCheckoutOffer,
   getCheckoutOfferKey,
   getOfferDestination,
+  getPreferredOriginalOfferUrl,
   getRequestBaseUrl,
 } from '../../../lib/agent-page'
 import { parseMoney } from '../../../lib/checkout'
@@ -105,6 +106,11 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
   if (!offer) {
     notFound()
   }
+
+  // Legacy/deep checkout links must honor the same original-site preference as
+  // the API. Imported Shopify products never render a Nexez/Stripe payment form.
+  const originalUrl = getPreferredOriginalOfferUrl(page, offer)
+  if (originalUrl) redirect(originalUrl)
 
   const destination = getOfferDestination(page, offer)
   const offerKey = getCheckoutOfferKey(offer.kind, offer.index)

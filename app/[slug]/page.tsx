@@ -28,6 +28,7 @@ import { loadReviewSummaryForSlug } from '../../lib/server/reviews'
 import type { ReviewSummary } from '../../lib/reviews'
 import { ApprovedActionForm } from '../../components/ApprovedActionForm'
 import { resolveRenamedPageSlug } from '../../lib/server/public-identifier'
+import { getPrimaryOfferAction } from '../../lib/public-offer-action'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -198,11 +199,7 @@ export default async function AgentPageRoute({ params, searchParams }: PageProps
   const ctaUrl = sanitizePublicUrl(page.cta_url) || sanitizePublicUrl(page.website_url) || '#'
   const websiteUrl = sanitizePublicUrl(page.website_url)
   const preferOriginal = !!page.prefer_original_site
-  const firstCheckoutPath = services.length && !preferOriginal
-    ? getCheckoutPath(page.slug, 'services', 0)
-    : products.length && !preferOriginal
-      ? getCheckoutPath(page.slug, 'products', 0)
-      : ''
+  const primaryAction = getPrimaryOfferAction(page, negotiationOffers)
   const reviewSummary = await loadReviewSummaryForSlug(page.slug, 3)
   const certification = getCertification(page)
   const verificationEvidence = getServerVerificationEvidence(page)
@@ -382,11 +379,11 @@ export default async function AgentPageRoute({ params, searchParams }: PageProps
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              {firstCheckoutPath ? (
+              {!primaryAction.external ? (
                 <>
                   {/* Primary booking action goes through Nexez's secure checkout. */}
-                  <a href={firstCheckoutPath} className="btn-primary">
-                    Book Now
+                  <a href={primaryAction.href} className="btn-primary">
+                    {primaryAction.label}
                     <LockKeyhole className="size-4" />
                   </a>
                   {/* Distinct secondary: the brand's own site (one link, never another "Book Now"). */}
@@ -403,12 +400,12 @@ export default async function AgentPageRoute({ params, searchParams }: PageProps
               ) : (
                 <>
                   {/* No Nexez checkout → the CTA itself is the (external) booking action. */}
-                  <a href={ctaUrl} className="btn-primary">
-                    {page.cta_label || (preferOriginal ? 'Book on our website' : 'Visit website')}
+                  <a href={primaryAction.href} className="btn-primary">
+                    {primaryAction.label}
                     <ArrowUpRight className="size-4" />
                   </a>
                   {/* Offer the main site too, but only if it's a different URL than the CTA. */}
-                  {websiteUrl && websiteUrl !== ctaUrl ? (
+                  {websiteUrl && websiteUrl !== primaryAction.href ? (
                     <a href={websiteUrl} className="btn-secondary">
                       Main website
                     </a>
