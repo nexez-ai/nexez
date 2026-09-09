@@ -414,6 +414,10 @@ describe('commitIntakeSession - materialization (spec §10)', () => {
 
   function makeAdmin(takenSlugs: string[], inserted: any[]) {
     return createSupabaseMock((ctx) => {
+      if (ctx.table === 'rpc:nz_public_identifier_availability') {
+        const available = !takenSlugs.includes(ctx.payload.p_identifier)
+        return { data: [{ available, reason: available ? 'available' : 'taken' }] }
+      }
       if (ctx.table === 'pages' && ctx.op === 'select') {
         return { data: takenSlugs.includes(ctx.eqs.slug) ? { id: 'taken' } : null }
       }
@@ -438,6 +442,52 @@ describe('commitIntakeSession - materialization (spec §10)', () => {
     expect(captured.sessions[0]).toMatchObject({ status: 'handed_off', page_id: 'page-new' })
     expect(captured.sessions[0].state.phase).toBe('REVIEW_HANDOFF')
     expect(captured.sessions[0].state.handoff.via).toBe('owner_exit') // commit before agent handoff = the owner exit
+  })
+
+  it('skips deleted and renamed listing URLs even when no current page uses them', async () => {
+    const { db } = makeDb(sessionRow(committableState()))
+    const inserted: any[] = []
+    const admin = makeAdmin([], inserted)
+    admin.rpc.mockImplementation(async (_fn: string, args: Record<string, unknown>) => {
+      const available = args.p_identifier === 'apex-catering-co-3'
+      return { data: [{ available, reason: available ? 'available' : args.p_identifier === 'apex-catering-co' ? 'reserved' : 'taken' }], error: null }
+    })
+
+    const result = await commitIntakeSession({ db, admin, user: OWNER, sessionId: 'sess-1' })
+    expect(result).toMatchObject({ ok: true, slug: 'apex-catering-co-3' })
+    expect(inserted).toHaveLength(1)
+    expect(admin.rpc).toHaveBeenCalledWith('nz_public_identifier_availability', {
+      p_namespace: 'page_slug', p_identifier: 'apex-catering-co', p_owner_id: OWNER.id, p_subject_id: null,
+    })
+  })
+
+  it.each([
+    { data: null, error: { code: 'XX000' } },
+    { data: [], error: null },
+    { data: [{ available: 'true' }], error: null },
+  ])('does not insert or close the interview when identifier availability is unreadable: %j', async (response) => {
+    const { db, captured } = makeDb(sessionRow(committableState()))
+    const inserted: any[] = []
+    const admin = makeAdmin([], inserted)
+    admin.rpc.mockResolvedValue(response)
+
+    const result = await commitIntakeSession({ db, admin, user: OWNER, sessionId: 'sess-1' })
+    expect(result).toMatchObject({ ok: false, status: 503 })
+    expect(inserted).toHaveLength(0)
+    expect(captured.sessions).toHaveLength(0)
+  })
+
+  it('bounds URL search and checks the random fallback before attempting an insert', async () => {
+    const { db, captured } = makeDb(sessionRow(committableState()))
+    const inserted: any[] = []
+    const admin = makeAdmin([], inserted)
+    admin.rpc.mockResolvedValue({ data: [{ available: false, reason: 'reserved' }], error: null })
+
+    expect(await commitIntakeSession({ db, admin, user: OWNER, sessionId: 'sess-1' })).toMatchObject({ ok: false, status: 503 })
+    expect(admin.rpc).toHaveBeenCalledTimes(51)
+    expect(admin.rpc.mock.calls[50][1].p_identifier).toMatch(/^apex-catering-co-[a-f0-9]{8}$/)
+    expect(inserted).toHaveLength(0)
+    expect(captured.sessions).toHaveLength(0)
   })
 
   it('atomically retains an exact, registered template selection on a new listing', async () => {
@@ -706,6 +756,7 @@ describe('telemetry (spec §8)', () => {
     const { db } = makeDb(sessionRow(state, { created_at: '2026-07-06T00:00:00.000Z' }))
     const inserted: any[] = []
     const admin = createSupabaseMock((ctx) => {
+      if (ctx.table === 'rpc:nz_public_identifier_availability') return { data: [{ available: true, reason: 'available' }] }
       if (ctx.table === 'pages' && ctx.op === 'select') return { data: null }
       if (ctx.table === 'pages' && ctx.op === 'insert') {
         inserted.push(ctx.payload)

@@ -816,7 +816,8 @@ export async function commitIntakeSession(
     // New listing: same insert shape as /create, always as a draft - publishing
     // stays a human decision in the builder (spec §2.3).
     const name = draft.name.trim() || 'Untitled listing'
-    slug = await uniqueIntakeSlug(input.admin, normalizeSlug(name) || 'listing')
+    slug = await uniqueIntakeSlug(input.admin, normalizeSlug(name) || 'listing', input.user.id)
+    if (!slug) return { ok: false, status: 503, error: 'Could not check listing URL availability. Please try again.' }
     const { data, error } = await input.admin
       .from('pages')
       .insert({
@@ -840,7 +841,10 @@ export async function commitIntakeSession(
       })
       .select('id, slug')
       .single()
-    if (error || !data) return { ok: false, status: 500, error: 'Could not create your listing from the interview.' }
+    if (error || !data) {
+      captureError(new Error('Intake listing insert failed'), { scope: 'intake.commit', code: error?.code ?? 'missing_row' })
+      return { ok: false, status: 500, error: 'Could not create your listing from the interview.' }
+    }
     pageId = data.id
     slug = data.slug
   }
@@ -877,19 +881,31 @@ export async function commitIntakeSession(
   return { ok: true, pageId, slug, alreadyCommitted: false }
 }
 
-/** First-free slug: base, base-2, base-3… (checked with the admin client since
- *  slug uniqueness is global and RLS hides other tenants' pages). */
-async function uniqueIntakeSlug(admin: Db, base: string): Promise<string> {
+/** Check the identifier registry, which also protects deleted and renamed URLs.
+ *  The insert trigger remains the final authority for concurrent claims. */
+async function uniqueIntakeSlug(admin: Db, base: string, ownerId: string): Promise<string | null> {
   const normalized = normalizeSlug(base)
   const root = validatePublicIdentifier(normalized).ok
     ? normalized
     : publicIdentifierSuggestions(normalized)[0] || 'new-listing'
-  for (let i = 0; i < 50; i++) {
-    const candidate = i === 0 ? root : publicIdentifierWithSuffix(root, i + 1)
-    const { data } = await admin.from('pages').select('id').eq('slug', candidate).maybeSingle()
-    if (!data) return candidate
+  for (let i = 0; i <= 50; i++) {
+    const candidate = i === 50
+      ? publicIdentifierWithSuffix(root, crypto.randomUUID().slice(0, 8))
+      : i === 0 ? root : publicIdentifierWithSuffix(root, i + 1)
+    const { data, error } = await admin.rpc('nz_public_identifier_availability', {
+      p_namespace: 'page_slug',
+      p_identifier: candidate,
+      p_owner_id: ownerId,
+      p_subject_id: null,
+    })
+    const availability = Array.isArray(data) ? data[0] : data
+    if (error || typeof availability?.available !== 'boolean') {
+      captureError(new Error('Intake identifier availability check failed'), { scope: 'intake.commit', code: error?.code ?? 'invalid_response' })
+      return null
+    }
+    if (availability.available) return candidate
   }
-  return publicIdentifierWithSuffix(root, crypto.randomUUID().slice(0, 8))
+  return null
 }
 
 // ---------------------------------------------------------------------------
