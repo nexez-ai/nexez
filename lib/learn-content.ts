@@ -84,8 +84,10 @@ import { cloudflareSeptember15Crawlers } from './learn-articles/cloudflare-septe
 import { whenAiAgentsCallYourBusiness } from './learn-articles/when-ai-agents-call-your-business'
 import { reviewsRatingsAndAiAgents } from './learn-articles/reviews-ratings-and-ai-agents'
 import { pricingForAiAgents } from './learn-articles/pricing-for-ai-agents'
+import { howAgentsIdentifyYourBusiness } from './learn-articles/how-agents-identify-your-business'
 
 export const learnArticles: LearnArticle[] = [
+  howAgentsIdentifyYourBusiness,
   pricingForAiAgents,
   reviewsRatingsAndAiAgents,
   whenAiAgentsCallYourBusiness,
