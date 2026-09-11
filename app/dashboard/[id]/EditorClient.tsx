@@ -270,7 +270,7 @@ export function EditorClient({ initial }: { initial: EditorInitial }) {
 
                   {page?.team_collaboration?.approvals?.some((approval: any) => approval.status === 'pending') ? (
                     <div className="rounded-[var(--radius)] border border-[var(--amber)]/30 bg-[var(--amber)]/5 p-3 text-sm text-[var(--amber)]">
-                      Team approvals are pending. Saving queues these edits for review; the live version updates after approval.
+                      Team approvals are pending. Use Save as draft to keep edits private while they are reviewed. Save changes updates the live listing.
                     </div>
                   ) : null}
 

@@ -5,6 +5,22 @@ is the commercial/data decision pass (Stage 0) and a bounded public website scan
 (Stage 1). Connected merchant reports and merchant-reviewed changes have separate
 evidence gates.
 
+## Overall plan status
+
+Completing the scanner and its operational prerequisites does not complete the
+organization product. The current delivery boundaries are:
+
+| Stage | Status |
+|---|---|
+| 0: commercial and data decisions | Open participant, report, source, price, consent-copy and activation-policy evidence. The draft investigation below advances an independent technical prerequisite. |
+| 1: scanner workspace | Foundation, execution and operations shipped. Hosted Inngest recovery is verified. Real pilot activation, usefulness and unit economics remain open. |
+| 2: merchant report foundations | Not delivered for the organization product. Requires the source and reporting decisions. |
+| 3: consent and first authorized report | Not delivered. Includes acceptance, narrowing, revocation, disclosure and organization report access. |
+| 4: applied and verified improvement | Not delivered. The draft investigation fixes existing editor prerequisites, without implementing proposals or merchant application transactions. |
+| 5: evidence window and hardening | Not completed. Requires actual repeated use over the planned observation window. |
+| 6: team support and paid reporting beta | Not delivered. |
+| Optional attribution and expanded execution branches | Outside the initial commitment; separate decisions and estimates remain. |
+
 ## Stage 0 decisions
 
 Taio confirmed that the agency operator, merchant, reporting task, and pilot price
@@ -408,8 +424,48 @@ A real SDK registration test reproduces the old rejection and checks all functio
 configurations, the canonical host, and four invalid-signature cases. All 5,272
 root tests, TypeScript and changed-file ESLint passed, with one existing live
 benchmark skipped. Hosted app registration and a successful current-deployment
-recovery still need verification after the follow-up deploys.
+recovery were verified after the follow-up deploys, as recorded below.
+
+### Hosted recovery and E2E completion
+
+The production Inngest app was registered on the canonical serve URL with all five
+functions present. A real
+[feed-regenerate run](https://app.inngest.com/env/production/runs/01M2125G3Z0RN7MYE5E3PPVRV3)
+completed with HTTP 200 from all four feed endpoints. Database read-back confirmed
+successful hosted recovery and cleanup, with no overdue expired batches.
+
+[PR #288](https://github.com/nexez-ai/nexez/pull/288) merged at GitHub's
+`2026-09-09T02:54:05Z` as `72b5b922edb290ec12f91f121e3599ab84b18f7d`.
+The intake handoff, reserved-identifier allocation, settings focus and E2E
+credential parsing fixes passed 25 CI browser tests. The separately run production
+interview and settings checks passed, and their exact private fixtures were removed.
+Production recovery then completed at `2026-09-09T02:57:02Z` with the merged
+revision. The production deployment and full main CI, including build and dead-code
+checks, passed. This establishes the hosted runner prerequisite, not pilot demand.
 
 Delivered alerts, pilot usefulness and unit economics remain unverified. Preview
 HTTP access is protected by Vercel authentication and must be checked through an
 authorized session, without disabling that protection.
+
+## Slice D: Stage 0 merchant draft investigation
+
+The [draft reuse investigation](organization-draft-reuse-proof.md) records the
+initial description/FAQ contract, listing-writer inventory, prerequisite fixes,
+verification evidence and remaining transaction requirements.
+
+Publishing a partial draft previously reset omitted live fields. Reopening the
+editor loaded live values over staged work, and writes could report success after
+updating zero rows. The editor now loads supported staged content, preserves
+omitted fields during publication, rejects unsupported saved draft shapes, checks
+the loaded owner and server version for all three content writes, and consumes
+the actual returned row. Draft publication retains the listing's visibility.
+
+The focused suite passed 37 tests, the full root suite passed 5,341 tests with one
+existing opt-in benchmark skipped, and all 46 mobile contract tests passed. Two
+real browser tests proved partial-draft preservation and stale-tab rejection with
+database read-back and exact private-fixture cleanup. The proof document names
+the remaining build/CI and proposal-transaction gates.
+
+This advances Stage 0 and a prerequisite for Stage 4. Pilot selection, commercial
+evidence, connected reporting, consent, proposals, atomic application receipts,
+the evidence window and paid team support remain work ahead.

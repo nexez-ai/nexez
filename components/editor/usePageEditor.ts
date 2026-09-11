@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AgentPage,
   OfferItem,
+  OWNER_PAGE_SELECT,
   formatFaqLines,
   formatOfferLines,
   getReadinessScore,
@@ -17,7 +18,7 @@ import {
   buildDraftContent,
   type EditorSaveInput,
 } from '../../lib/editor-merge'
-import { draftToLiveUpdate } from '../../lib/draft'
+import { applyDraftOverlay, draftToLiveUpdate, isSupportedPageDraft } from '../../lib/draft'
 import { publishErrorMessage } from '../../lib/publish-error'
 import { requestAiEnhancement } from '../../lib/ai-enhance-client'
 import { mutateTeamApproval } from '../../lib/team-approval-client'
@@ -60,6 +61,11 @@ export function usePageEditor(initial: EditorInitial) {
   const teamCollaborationEnabled = initial.teamCollaborationEnabled === true
   const negotiationEnabled = initial.negotiationEnabled === true
 
+  const initialContent = useMemo(() => isSupportedPageDraft(initial.page.draft)
+    ? applyDraftOverlay(initial.page, initial.page.draft)
+    : initial.page, [initial.page])
+  const writeInProgress = useRef(false)
+
   const [page, setPage] = useState<AgentPage>(initial.page)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -67,24 +73,24 @@ export function usePageEditor(initial: EditorInitial) {
   const [aiBusy, setAiBusy] = useState(false)
   const [integrationResyncing, setIntegrationResyncing] = useState<string | null>(null)
 
-  const [name, setName] = useState(initial.page.name ?? '')
+  const [name, setName] = useState(initialContent.name ?? '')
   const [slug, setSlug] = useState(initial.page.slug ?? '')
-  const [description, setDescription] = useState(initial.page.description ?? '')
+  const [description, setDescription] = useState(initialContent.description ?? '')
   const [websiteUrl, setWebsiteUrl] = useState(initial.page.website_url ?? '')
   const [ctaUrl, setCtaUrl] = useState(initial.page.cta_url ?? '')
   const [ctaLabel, setCtaLabel] = useState(initial.page.cta_label ?? 'Visit website')
   const [audience, setAudience] = useState(initial.page.audience ?? '')
   const [location, setLocation] = useState(initial.page.location ?? '')
   const [contactEmail, setContactEmail] = useState(initial.page.contact_email ?? '')
-  const [industry, setIndustry] = useState(initial.page.industry ?? '')
-  const [preferOriginalSite, setPreferOriginalSite] = useState(!!initial.page.prefer_original_site)
+  const [industry, setIndustry] = useState(initialContent.industry ?? '')
+  const [preferOriginalSite, setPreferOriginalSite] = useState(!!initialContent.prefer_original_site)
   const [nextAvailable, setNextAvailable] = useState((initial.page as any).next_available ?? '')
   const [googleCalendarId] = useState((initial.page as any).google_calendar_id ?? '')
-  const [products, setProducts] = useState(formatOfferLines(initial.page.products))
-  const [services, setServices] = useState(formatOfferLines(initial.page.services))
-  const [faqs, setFaqs] = useState(formatFaqLines(initial.page.faqs))
-  const [servicesOffers, setServicesOffers] = useState<OfferItem[]>((initial.page.services ?? []) as OfferItem[])
-  const [productsOffers, setProductsOffers] = useState<OfferItem[]>((initial.page.products ?? []) as OfferItem[])
+  const [products, setProducts] = useState(formatOfferLines(initialContent.products))
+  const [services, setServices] = useState(formatOfferLines(initialContent.services))
+  const [faqs, setFaqs] = useState(formatFaqLines(initialContent.faqs))
+  const [servicesOffers, setServicesOffers] = useState<OfferItem[]>((initialContent.services ?? []) as OfferItem[])
+  const [productsOffers, setProductsOffers] = useState<OfferItem[]>((initialContent.products ?? []) as OfferItem[])
   const [isPublished, setIsPublished] = useState(initial.page.is_published)
   const slugValidation = validatePublicIdentifier(slug, { current: page.slug })
   const slugAvailability = usePublicIdentifierAvailability({
@@ -491,6 +497,40 @@ export function usePageEditor(initial: EditorInitial) {
     setMessage('Re-analysis discarded.')
   }
 
+  async function persistEditorUpdate(payload: Record<string, unknown>, successMessage: string) {
+    if (writeInProgress.current) return
+    if (!page.owner_id || !page.updated_at) {
+      setMessage('Reload this listing before saving. Its current version could not be verified.')
+      return
+    }
+    writeInProgress.current = true
+    setSaving(true)
+    setMessage('')
+    try {
+      // RLS authorizes the caller. These filters prevent a stale editor from
+      // overwriting a newer row or a page whose owner changed while it was open.
+      // Return the database timestamp, never a client-created version token.
+      const { data, error } = await createClient().from('pages')
+        .update(payload)
+        .eq('id', page.id)
+        .eq('owner_id', page.owner_id)
+        .eq('updated_at', page.updated_at)
+        .select(OWNER_PAGE_SELECT)
+        .maybeSingle<AgentPage>()
+      if (error) setMessage(publicIdentifierDatabaseMessage(error) || publishErrorMessage(error))
+      else if (!data) setMessage('This listing changed or your access ended. Keep a copy of your edits, then reload the listing.')
+      else {
+        setPage(data)
+        setMessage(successMessage)
+      }
+    } catch {
+      setMessage('The connection was interrupted. Reload the listing to check whether your update was saved before trying again.')
+    } finally {
+      writeInProgress.current = false
+      setSaving(false)
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!page) return
@@ -502,70 +542,34 @@ export function usePageEditor(initial: EditorInitial) {
       setMessage(slugAvailability.result.message)
       return
     }
-    setSaving(true)
-    setMessage('')
-    const supabase = createClient()
-
-    const { payload, versions } = buildSavePayload(saveInput(), (page as any).versions || [])
-    const updatePayload: any = { ...payload }
-
-    const { error } = await supabase.from('pages').update(updatePayload).eq('id', page.id)
-    if (!error) {
-      setPage(
-        (prev) =>
-          ({
-            ...(prev as any),
-            versions,
-          }) as AgentPage,
-      )
-    }
-    setSaving(false)
-    if (error) {
-      setMessage(publicIdentifierDatabaseMessage(error) || publishErrorMessage(error))
-    } else {
-      setMessage('Saved. Version snapshot created.')
-    }
+    const { payload } = buildSavePayload(saveInput(), (page as any).versions || [])
+    await persistEditorUpdate(payload, 'Saved. Version snapshot created.')
   }
 
   async function handleSaveDraft() {
     if (!page) return
-    setSaving(true)
-    setMessage('')
-    const supabase = createClient()
+    if (page.draft != null && !isSupportedPageDraft(page.draft)) {
+      setMessage('This saved draft uses an unsupported format. It has been kept intact; contact support to recover it.')
+      return
+    }
     const draft = buildDraftContent(saveInput())
     const draftUpdatedAt = new Date().toISOString()
-    const { error } = await supabase.from('pages').update({ draft, draft_updated_at: draftUpdatedAt }).eq('id', page.id)
-    setSaving(false)
-    if (error) {
-      setMessage(publishErrorMessage(error))
-    } else {
-      setPage((prev) => ({ ...(prev as any), draft, draft_updated_at: draftUpdatedAt }) as AgentPage)
-      setMessage('Draft saved (staged). Preview it on your listing, then Publish to go live.')
-    }
+    await persistEditorUpdate({ draft, draft_updated_at: draftUpdatedAt }, 'Draft saved (staged). Preview it on your listing, then Publish to go live.')
   }
 
   async function handlePublishDraft() {
     if (!page) return
-    const draft = (page as any).draft
+    const draft = page.draft
     if (!draft) {
       setMessage('No draft to publish.')
       return
     }
-    setSaving(true)
-    setMessage('')
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('pages')
-      .update({ ...draftToLiveUpdate(draft), draft: null, draft_updated_at: null })
-      .eq('id', page.id)
-    setSaving(false)
-    if (error) {
-      setMessage(publishErrorMessage(error))
-    } else {
-      setPage((prev) => ({ ...(prev as any), ...draftToLiveUpdate(draft), draft: null, draft_updated_at: null }) as AgentPage)
-      setMessage('Draft published to live. Your custom domain now serves the new content.')
-      // Auto-memory on publish: LLM suggestions available in Settings (use "Suggest with LLM" for platform-configured LLM memory generation when llm_opt_in). The publish flow preserves any existing memory.
+    if (!isSupportedPageDraft(draft)) {
+      setMessage('This saved draft uses an unsupported format. It has been kept intact; contact support to recover it.')
+      return
     }
+    await persistEditorUpdate({ ...draftToLiveUpdate(draft), draft: null, draft_updated_at: null },
+      page.is_published ? 'Draft published to your live listing.' : 'Draft applied. Publish the listing when you are ready to make it public.')
   }
 
   async function duplicateThisPage() {
