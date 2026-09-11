@@ -549,13 +549,22 @@ effect at the next statement. Website input stays uncollected until a separate
 approved association and immutable snapshot producer exist.
 
 Local PostgreSQL gauntlets passed ownership, privilege, coverage, time-boundary,
-classification and row-cap checks, including all 2,048 readiness combinations.
+classification and row-cap checks. TypeScript covers all 2,048 readiness
+combinations; SQL covers the 1,536 permitted by the published-listing slug constraint.
 Separate real sessions proved the current-authority boundaries. The source adapter
 and API also passed a transport test using an actual local SQL projection. The
-focused run passed 101 tests. The full root run passed 5,463 tests with the existing
+focused run passed 102 tests. The full root run passed 5,463 tests with the existing
 opt-in benchmark skipped, after allowing loopback sockets for five existing
 certification tests. TypeScript, ESLint (zero errors, fourteen existing warnings),
 palette and em-dash checks passed. Local advisors found no warnings on the new
 objects; the minimal harness's page policy has an unrelated init-plan warning.
 Full schema replay, production build and dead-code checks remain CI gates. This slice
 has not applied a production migration or enrolled a merchant report pilot.
+
+The hosted Supabase preview also passed the corrected SQL gauntlet against the
+full schema. This caught and corrected fixture assumptions about the `draft`
+column, non-null collection arrays and the published-listing slug constraint.
+The rollback was read back: no fixture users or pilot/coverage rows remained,
+and source triggers and constraints were restored. Hosted advisors reported no
+warnings on the new objects; policy-free private tables and unused indexes on
+the empty preview produced expected informational notices.

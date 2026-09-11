@@ -112,6 +112,7 @@ describe('owner report input boundary', () => {
   it.each([
     (value: ReturnType<typeof fixture>) => ({ ...value, amount_cents: 100 }),
     (value: ReturnType<typeof fixture>) => ({ ...value, listing: { ...value.listing, products: [{ price: 123 }] } }),
+    (value: ReturnType<typeof fixture>) => ({ ...value, listing: { ...value.listing, draft: { description: 'Private staged text' } } }),
     (value: ReturnType<typeof fixture>) => ({ ...value, traffic: { state: 'no_coverage', value: value.traffic.value } }),
     (value: ReturnType<typeof fixture>) => ({ ...value, orders: { ...value.orders, value: { ...value.orders.value, orderIds: ['private'] } } }),
     (value: ReturnType<typeof fixture>) => ({ ...value, listing: { ...value.listing, readinessSignals: [true] } }),

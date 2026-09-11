@@ -11,10 +11,10 @@ insert into auth.users(id) values
 -- Isolate the input contract from unrelated publication/billing side effects.
 alter table public.pages disable trigger user;
 alter table public.checkout_orders disable trigger user;
-insert into public.pages(id, owner_id, name, slug, description, website_url, cta_url, audience, industry, contact_email, products, services, faqs, draft_content) values
+insert into public.pages(id, owner_id, name, slug, description, website_url, cta_url, audience, industry, contact_email, products, services, faqs, draft) values
   ('9b000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-000000000001', 'Report merchant', 'report-input-a', 'Live description', 'https://example.com', 'https://example.com/book', 'Buyer', 'Services', 'private@example.com', '[{"name":"Private offer","price":"PRIVATE_PRICE"}]', '[]', '[{"question":"Private question","answer":"Private answer"}]', '{"description":"PRIVATE_DRAFT"}'),
-  ('9b000000-0000-4000-8000-000000000002', '9a000000-0000-4000-8000-000000000001', 'Second listing', 'report-input-b', null, null, null, null, null, null, null, null, null, null),
-  ('9b000000-0000-4000-8000-000000000003', '9a000000-0000-4000-8000-000000000002', 'Foreign listing', 'report-input-c', null, null, null, null, null, null, null, null, null, null);
+  ('9b000000-0000-4000-8000-000000000002', '9a000000-0000-4000-8000-000000000001', 'Second listing', 'report-input-b', null, null, null, null, null, null, '[]', '[]', '[]', null),
+  ('9b000000-0000-4000-8000-000000000003', '9a000000-0000-4000-8000-000000000002', 'Foreign listing', 'report-input-c', null, null, null, null, null, null, '[]', '[]', '[]', null);
 
 do $$
 declare r text; t text; f text;
@@ -161,6 +161,9 @@ begin
   for mask in 0..2047 loop
     bits := array[]::boolean[];
     for i in 0..10 loop bits := bits || ((mask & (1 << i)) <> 0); end loop;
+    -- Published rows require a slug in the real schema (1,536 valid masks).
+    -- The pure TypeScript contract separately exercises all 2,048 masks.
+    if bits[11] and not bits[2] then continue; end if;
     update public.pages set name = case when bits[1] then 'Merchant' else '' end,
       slug = case when bits[2] then 'report-input-a' else null end,
       description = case when bits[3] then 'Description' else null end,
@@ -170,7 +173,7 @@ begin
       industry = case when bits[7] then 'Services' else null end,
       contact_email = case when bits[8] then 'private@example.com' else null end,
       services = case when bits[9] then '[{"name":"Private offer"}]'::jsonb else '[]'::jsonb end,
-      products = null, faqs = case when bits[10] then '[{"question":"Q","answer":"A"}]'::jsonb else 'null'::jsonb end,
+      products = '[]', faqs = case when bits[10] then '[{"question":"Q","answer":"A"}]'::jsonb else 'null'::jsonb end,
       is_published = bits[11]
     where id = '9b000000-0000-4000-8000-000000000001';
     v := public.read_merchant_report_inputs('9b000000-0000-4000-8000-000000000001', current_setting('report_test.month')::date);

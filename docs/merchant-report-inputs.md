@@ -67,7 +67,8 @@ client deadline. Direct session RPC calls retain the owner/pilot and row bounds.
 Listing presence signals use the current `nexez.agent-ready` / `2026.1` semantics
 and order. The server constructs the canonical criteria and score, then validates
 the entire report. Malformed collection JSON and oversized listing copy produce
-`calculation_failed`. Both SQL and TypeScript exercise all 2,048 signal combinations.
+`calculation_failed`. TypeScript exercises all 2,048 signal combinations; SQL covers
+the 1,536 combinations allowed by the published-listing slug constraint.
 
 The server hashes each metric's bounded values, definition version, exact scope
 and coverage evidence. Order hashes use account scope; listing and traffic hashes
