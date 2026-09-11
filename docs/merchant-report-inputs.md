@@ -111,6 +111,9 @@ former owner access nor gives the recipient the former owner's coverage or visit
   prove committed coverage withdrawal, reattestation, ownership transfer, recipient
   isolation, pilot disablement/expiry and stale-token ban behavior. Its fixtures
   are uniquely named and cleaned up. It refuses non-loopback databases.
+  Normal owner updates remain forbidden by the existing owner-pin trigger. The
+  test proves that denial, then simulates a privileged repair with a writer-local
+  trigger bypass to exercise current ownership without weakening the real guard.
 - Both database checks are included in the existing required entitlement test
   entry points, so no workflow-write permission is needed. CI replays the entire
   Supabase schema; the targeted local PostgreSQL harness uses minimal source tables.

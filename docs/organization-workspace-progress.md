@@ -568,3 +568,8 @@ The rollback was read back: no fixture users or pilot/coverage rows remained,
 and source triggers and constraints were restored. Hosted advisors reported no
 warnings on the new objects; policy-free private tables and unused indexes on
 the empty preview produced expected informational notices.
+
+The full-schema concurrency fixture also accounts for the existing immutable-owner
+trigger: it proves ordinary owner updates deny, then simulates a privileged repair
+only inside its isolated writer transaction. No application ownership-transfer
+feature or relaxed production guard is introduced.

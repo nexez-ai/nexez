@@ -17,7 +17,12 @@ month_sql = "(date_trunc('month', statement_timestamp() at time zone 'UTC') - in
 
 
 def sql(statement):
-    return subprocess.run(command, input=statement, text=True, capture_output=True, check=True, timeout=15).stdout.strip()
+    result = subprocess.run(command, input=statement, text=True, capture_output=True, timeout=15)
+    if result.returncode:
+        # Only this loopback fixture database is permitted. Do not include the
+        # connection string in an exception when a fixture fails in CI.
+        raise RuntimeError('Local report fixture SQL failed: ' + result.stderr.strip())
+    return result.stdout.strip()
 
 
 def attest():
@@ -72,7 +77,17 @@ try:
     assert read(probe)['data']['traffic'] == {'state': 'no_coverage'}, 'withdrawal must affect the next statement'
     attest()
     assert read(probe)['data']['traffic']['state'] == 'available', 'reattested coverage must be observed'
-    sql(f"update public.pages set owner_id = '{recipient}' where id = '{page}';")
+    # Normal writes deliberately pin owner_id, even for the service role. Prove
+    # that guard first. Then simulate a privileged data repair in this isolated
+    # database only, with trigger bypass local to the writer transaction. No
+    # production guard or shared trigger definition is disabled or replaced.
+    sql(f"""do $$begin
+      begin update public.pages set owner_id = '{recipient}' where id = '{page}';
+        raise exception 'normal ownership update bypassed the owner guard';
+      exception when insufficient_privilege then null; end;
+      end;$$;
+      begin; set local session_replication_role = 'replica';
+      update public.pages set owner_id = '{recipient}' where id = '{page}'; commit;""")
     assert read(probe)['data'] is None, 'former owner must lose access immediately after committed transfer'
     received = read(f"set local request.jwt.claim.sub = '{recipient}';" + probe)['data']
     assert received['ownerId'] == recipient
@@ -93,4 +108,11 @@ finally:
     if session is not None and session.poll() is None:
         session.terminate()
         session.wait(timeout=5)
-    sql(f"begin; delete from public.pages where id = '{page}'; delete from auth.users where id in ('{owner}', '{recipient}'); commit;")
+    sql(f"""begin; delete from public.pages where id = '{page}';
+      do $$begin
+        if to_regclass('private.public_identifier_claims') is not null then
+          delete from private.public_identifier_claims where namespace = 'page_slug'
+            and identifier = 'report-boundary-{page}' and owner_id in ('{owner}', '{recipient}');
+        end if;
+      end;$$;
+      delete from auth.users where id in ('{owner}', '{recipient}'); commit;""")
