@@ -39,16 +39,38 @@ describe('applyDraftOverlay', () => {
 })
 
 describe('draftToLiveUpdate', () => {
-  it('maps a draft to a complete live-column update with safe defaults', () => {
+  it('publishes only staged fields, preserving every omitted live field', () => {
     expect(draftToLiveUpdate({ name: 'X' })).toEqual({
       name: 'X',
-      description: null,
-      services: [],
-      products: [],
-      faqs: [],
-      industry: null,
-      prefer_original_site: false,
     })
+  })
+
+  it('preserves offers and website preference when publishing a re-interview draft', () => {
+    const live = {
+      name: 'Merchant', description: 'Before', services: [{ name: 'Configured offer', rules: { minimum: 42 } }],
+      products: [{ name: 'Product', provider: { id: 'external-1' } }], faqs: [], industry: 'services',
+      prefer_original_site: true, is_published: false,
+    }
+    const draft = { description: 'Reviewed description' }
+    expect({ ...live, ...draftToLiveUpdate(draft) }).toEqual({ ...live, description: draft.description })
+  })
+
+  it('distinguishes explicit clearing from omission', () => {
+    expect(draftToLiveUpdate({ description: null, faqs: [], prefer_original_site: false })).toEqual({
+      description: null, faqs: [], prefer_original_site: false,
+    })
+    expect(draftToLiveUpdate({ description: undefined })).toEqual({})
+  })
+
+  it.each([
+    { description: 'Reviewed', is_published: true },
+    { description: 'Reviewed', unknown_legacy_field: 'retain me' },
+    { prefer_original_site: 'false' },
+    { services: 'not an array' },
+    { faqs: [{ question: 'Question', answer: 42 }] },
+    ['not an object'],
+  ])('rejects unsupported persisted draft shapes instead of silently discarding data: %j', (draft) => {
+    expect(() => draftToLiveUpdate(draft as unknown as PageDraft)).toThrow(/draft/i)
   })
 
   it('passes through provided values', () => {
