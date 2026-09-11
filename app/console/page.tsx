@@ -39,6 +39,7 @@ export default async function OrganizationDirectory({ searchParams }: { searchPa
                   <p className="mt-2 text-sm capitalize text-[var(--fg-muted)]">{organization.role}</p>
                   <p className="mt-5 text-sm">Open workspace &rarr;</p>
                 </Link>
+                <Link prefetch={false} href={`/console/${organization.slug}/report-examples`} className="mt-3 inline-block text-sm underline underline-offset-4">View report examples</Link>
               </li>
             ))}
           </ul>

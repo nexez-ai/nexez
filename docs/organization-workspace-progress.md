@@ -14,7 +14,7 @@ organization product. The current delivery boundaries are:
 |---|---|
 | 0: commercial and data decisions | Open participant, report, source, price, consent-copy and activation-policy evidence. The draft investigation below advances an independent technical prerequisite. |
 | 1: scanner workspace | Foundation, execution and operations shipped. Hosted Inngest recovery is verified. Real pilot activation, usefulness and unit economics remain open. |
-| 2: merchant report foundations | Not delivered for the organization product. Requires the source and reporting decisions. |
+| 2: merchant report foundations | A report contract and synthetic review examples are prepared. Connected source producers and merchant baseline collection remain undelivered and require the source/reporting decisions. |
 | 3: consent and first authorized report | Not delivered. Includes acceptance, narrowing, revocation, disclosure and organization report access. |
 | 4: applied and verified improvement | Not delivered. The draft investigation fixes existing editor prerequisites, without implementing proposals or merchant application transactions. |
 | 5: evidence window and hardening | Not completed. Requires actual repeated use over the planned observation window. |
@@ -469,3 +469,63 @@ the remaining build/CI and proposal-transaction gates.
 This advances Stage 0 and a prerequisite for Stage 4. Pilot selection, commercial
 evidence, connected reporting, consent, proposals, atomic application receipts,
 the evidence window and paid team support remain work ahead.
+
+### Slice D release
+
+[PR #291](https://github.com/nexez-ai/nexez/pull/291) merged at GitHub's
+`2026-09-11T03:07:58Z` as `fba0797f351a98bb6969a0771dc58ef50621992d`.
+The merged files match the tested PR revision. Vercel production deployment
+`dpl_HNxdRhfxQbLq5AzpuZgeoqXtRA6v` reached READY on that revision and serves
+`app.nexez.ai`. Both real production draft-preservation browser scenarios passed
+in 14.9 seconds, including exact private-fixture cleanup.
+
+[Main CI](https://github.com/nexez-ai/nexez/actions/runs/34557279415) passed all
+jobs, including production build and dead-code checks.
+[Release certification](https://github.com/nexez-ai/nexez/actions/runs/34557593261)
+also passed. The deployment's error-log query from `03:08:54Z` through `03:12:03Z`
+returned no matching errors. No schema change or pilot activation was part of
+this release.
+
+## Slice E: report contract and representative examples
+
+The [report contract](organization-report-contract.md) defines a bounded projection
+and a reusable single-report component, with three synthetic examples for review.
+Listing readiness uses the canonical eleven criteria. Website readiness remains
+separate; traffic and order counts have explicit scopes, periods, trust/coverage
+metadata and missing states. Financial totals and attribution remain unavailable.
+
+The contract rejects broad owner-rollup fields, private draft/offer configuration,
+individual records, money, unsupported versions, inconsistent counts, unsafe
+website origins and noncanonical periods. All 60 focused tests passed, including
+every readiness-criterion combination and rendering/escaping checks. The final
+root suite passed 5,401 tests with one opt-in benchmark skipped. TypeScript,
+ESLint, both style guards and all 46 mobile contract tests passed. Browser checks
+covered all three examples, both themes, desktop/mobile views and bounded maximum
+counts at 320px. Adversarial checks reproduced and fixed malformed-date crashes
+and large-count overflow before the final pass. The local examples are generated
+from that same tested component. Production build and dead-code checks remain CI
+gates for this slice.
+
+The signed-in `/console/[orgSlug]/report-examples` inspection page now mounts
+only the three fixed synthetic fixtures, with current workspace authorization at
+the leaf and navigation to the scanner. Fifteen additional tests cover its access
+and input boundaries. The updated root suite passed 5,416 cases; TypeScript and
+ESLint also passed. This is Stage 0 review preparation and a Stage 2 contract
+prerequisite. It does not implement connected data queries,
+website associations, consent or organization report access. The source and
+commercial decisions above remain open, and the proof document specifies the
+authorization and reconciliation gates before this can become a connected report.
+
+### Internal inspection activation
+
+The requested internal workspace is `nexez-internal`, named Nexez internal
+inspection, with one confirmed account as its sole owner. The reviewed setup uses
+five targets per batch, ten per day, one concurrent target, and a fourteen-day
+entitlement. Its provisioning transaction checks the exact confirmed account,
+empty organization state, disabled runtime controls, current recovery/cleanup,
+and the active shared network limiter before making any persistent change.
+
+The transaction passed a rollback rehearsal. Production activation requires the
+separately requested explicit approval for ownership and runtime-control changes.
+This internal inspection does not establish an external pilot, merchant consent,
+commercial commitment, or delivery of operational alerts.
