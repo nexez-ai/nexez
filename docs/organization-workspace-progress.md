@@ -13,8 +13,8 @@ organization product. The current delivery boundaries are:
 | Stage | Status |
 |---|---|
 | 0: commercial and data decisions | Open participant, report, source, price, consent-copy and activation-policy evidence. The draft investigation below advances an independent technical prerequisite. |
-| 1: scanner workspace | Foundation, execution and operations shipped. Hosted Inngest recovery is verified. Real pilot activation, usefulness and unit economics remain open. |
-| 2: merchant report foundations | A report contract and synthetic review examples are prepared. Connected source producers and merchant baseline collection remain undelivered and require the source/reporting decisions. |
+| 1: scanner workspace | Foundation, execution and operations shipped. Hosted Inngest recovery and internal inspection activation are verified. External pilot usefulness and unit economics remain open. |
+| 2: merchant report foundations | Contract/examples shipped. The owner-only listing, traffic and order-count reader is implemented for review, with pilot and coverage tables empty by default. Merchant website baseline collection and real source/reporting decisions remain open. |
 | 3: consent and first authorized report | Not delivered. Includes acceptance, narrowing, revocation, disclosure and organization report access. |
 | 4: applied and verified improvement | Not delivered. The draft investigation fixes existing editor prerequisites, without implementing proposals or merchant application transactions. |
 | 5: evidence window and hardening | Not completed. Requires actual repeated use over the planned observation window. |
@@ -33,7 +33,7 @@ have not been chosen. These remain open decisions, not validated assumptions.
 | Source coverage | Available Nexez activity, missing sources, dates and currencies | Open with merchant |
 | Commercial offer | Pilot price, continuation price, limits, decision date and price-specific commitment | Open, Taio |
 | Consent and disclosure | Owner-account scope, history, expiry, capability dependencies and optional financial disclosure | Before connected reporting |
-| Scanner policy | Quotas, target pressure, robots behavior, acceptable use, retention and incident owner | Before scanner activation |
+| Scanner policy | Quotas, target pressure, robots behavior, acceptable use, retention and incident owner | Approved for bounded internal inspection; external pilot remains open |
 | Attribution | Optional branch or separately priced amendment | Remains outside the first slice |
 
 No external participant has been contacted, and no commercial commitment is
@@ -525,7 +525,37 @@ entitlement. Its provisioning transaction checks the exact confirmed account,
 empty organization state, disabled runtime controls, current recovery/cleanup,
 and the active shared network limiter before making any persistent change.
 
-The transaction passed a rollback rehearsal. Production activation requires the
-separately requested explicit approval for ownership and runtime-control changes.
-This internal inspection does not establish an external pilot, merchant consent,
-commercial commitment, or delivery of operational alerts.
+After explicit approval, the production activation completed at
+2026-09-11T04:18:25Z for realestglad@gmail.com as sole owner. The fourteen-day
+entitlement expires at 2026-09-25T04:18:25Z. Membership, limits, owner-only scan
+access and current recovery/cleanup were read back. PR #292 merged as
+`97d0fb663d5b7bd2292e21cf5731869babf9e1a7`; its production deployment, main CI and
+release certification passed. This internal inspection does not establish an
+external pilot, merchant consent, commercial commitment or operational alert delivery.
+
+## Slice F: owner-only report source inputs
+
+The [merchant report input reader](merchant-report-inputs.md) adds the bounded
+listing, recorded-traffic and durable-order sources behind a separate, initially
+empty owner pilot gate. A session RPC derives current ownership from the database
+and provides one statement snapshot. It returns minimal listing signals and counts,
+without raw records, monetary values, prospect scans or organization authority.
+
+Collection evidence is also empty by default. A reviewed interval is required
+before an empty result can be labelled zero. Partial coverage stays partial;
+queries exceeding 100,000 matching rows return calculation unavailable. Coverage
+withdrawal, ownership transfer, account bans and pilot disablement/expiry take
+effect at the next statement. Website input stays uncollected until a separate
+approved association and immutable snapshot producer exist.
+
+Local PostgreSQL gauntlets passed ownership, privilege, coverage, time-boundary,
+classification and row-cap checks, including all 2,048 readiness combinations.
+Separate real sessions proved the current-authority boundaries. The source adapter
+and API also passed a transport test using an actual local SQL projection. The
+focused run passed 101 tests. The full root run passed 5,463 tests with the existing
+opt-in benchmark skipped, after allowing loopback sockets for five existing
+certification tests. TypeScript, ESLint (zero errors, fourteen existing warnings),
+palette and em-dash checks passed. Local advisors found no warnings on the new
+objects; the minimal harness's page policy has an unrelated init-plan warning.
+Full schema replay, production build and dead-code checks remain CI gates. This slice
+has not applied a production migration or enrolled a merchant report pilot.
