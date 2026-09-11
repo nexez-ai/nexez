@@ -21,7 +21,8 @@ function Freshness({ metric }: { metric: OrganizationReportMetric }) {
 }
 
 /** Presentation only, with no queries, permissions, downloads or mutations.
- * No production route mounts it until the source and consent boundaries exist. */
+ * The inspection route supplies fixed synthetic fixtures. Connected reports
+ * still require the source and consent boundaries before any production read. */
 export function OrganizationReport({ report }: { report: unknown }) {
   const parsed = organizationReportSchema.safeParse(report)
   if (!parsed.success) return <article className="org-report" role="status"><h1>Report unavailable</h1><p>The report data could not be verified. No results are shown.</p></article>

@@ -1,9 +1,10 @@
 # Organization report contract and review examples
 
 This is a Stage 0 representative-report prototype and an executable prerequisite
-for Stage 2. It is not a connected agency report. No route, database producer,
-organization grant, financial release, website association or background job is
-introduced. The React component is currently used by local examples and tests.
+for Stage 2. It is not a connected agency report. The signed-in inspection route
+`/console/[orgSlug]/report-examples` selects fixed synthetic fixtures after a
+current workspace-membership check. It adds no merchant data producer, consent
+grant, financial release, website association or background job.
 
 The proposed task is a short merchant update: establish current listing and
 website readiness, show the limits of available Nexez activity, and select one
@@ -32,7 +33,8 @@ ORGANIZATION_REPORT_PREVIEW_DIR=/private/tmp/nexez-report-examples \
 Open the resulting `index.html` to switch examples and themes. `examples.json`
 contains the corresponding bounded data. The generator uses no network or
 credentials and writes only when this output variable is explicitly supplied.
-The example shell is a local review aid, not a production report-sharing mechanism.
+The example shell is a local review aid. The signed-in inspection page uses only
+the three fixed examples and provides navigation to the workspace scanner.
 
 ## Metric definitions
 
@@ -110,7 +112,8 @@ provenance are assertions that a future trusted producer must establish. A calle
 cannot gain authority by supplying any of them. The component cannot verify a
 database relationship, ownership or a cryptographic provenance claim.
 
-Before any production entry point mounts this component, the implementation must:
+Before any production entry point supplies merchant-source data to this component,
+the implementation must:
 
 1. Derive the authenticated viewer and current merchant/organization context.
    Enforce the current immutable consent revision, resource scope, history and
@@ -159,17 +162,23 @@ five missing states, safe HTML escaping and malformed-report refusal. A malforme
 date initially escaped validation as a rendering exception; a regression case
 now proves invalid and out-of-range timestamps return an unavailable report.
 
-The final root suite passed 5,401 tests, with the existing opt-in live benchmark
+The root suite passed 5,416 tests after adding the inspection route, with the existing opt-in live benchmark
 skipped. TypeScript, ESLint, palette and em-dash checks passed, as did all 46
 seller-mobile contract tests. Local browser verification covered the three
 examples, desktop and mobile layouts, light and dark themes, and maximum counts
 with a long merchant name at 320px. An initial large-count overflow was corrected;
 the final run showed no viewport overflow or uncaught browser exceptions.
 
+The inspection route adds fifteen cases for sign-in return routing, strict example
+selection, explicit organization context, denied membership, current access after
+revocation, lookup failure, and synthetic-only rendering. It uses the existing
+workspace authorizer and performs no merchant table reads. The route is dynamic
+and excluded from indexing. An existing membership authorizes only these examples;
+it does not authorize real merchant reporting.
+
 Production build and dead-code verification are CI gates under the repository's
-documented local sandbox limitations. This slice adds no database migration or
-production route; the local examples do not prove live report access, source
-reconciliation or consent behavior.
+documented local sandbox limitations. This slice adds no database migration. The
+examples do not prove live report access, source reconciliation or consent behavior.
 
 The examples make review concrete, but do not satisfy the Stage 0 commercial or
 source gate. The remaining decisions still need real participants:

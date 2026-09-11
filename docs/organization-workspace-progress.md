@@ -506,8 +506,26 @@ and large-count overflow before the final pass. The local examples are generated
 from that same tested component. Production build and dead-code checks remain CI
 gates for this slice.
 
-No production route mounts this component. This is Stage 0 review preparation
-and a Stage 2 contract prerequisite. It does not implement connected data queries,
+The signed-in `/console/[orgSlug]/report-examples` inspection page now mounts
+only the three fixed synthetic fixtures, with current workspace authorization at
+the leaf and navigation to the scanner. Fifteen additional tests cover its access
+and input boundaries. The updated root suite passed 5,416 cases; TypeScript and
+ESLint also passed. This is Stage 0 review preparation and a Stage 2 contract
+prerequisite. It does not implement connected data queries,
 website associations, consent or organization report access. The source and
 commercial decisions above remain open, and the proof document specifies the
 authorization and reconciliation gates before this can become a connected report.
+
+### Internal inspection activation
+
+The requested internal workspace is `nexez-internal`, named Nexez internal
+inspection, with one confirmed account as its sole owner. The reviewed setup uses
+five targets per batch, ten per day, one concurrent target, and a fourteen-day
+entitlement. Its provisioning transaction checks the exact confirmed account,
+empty organization state, disabled runtime controls, current recovery/cleanup,
+and the active shared network limiter before making any persistent change.
+
+The transaction passed a rollback rehearsal. Production activation requires the
+separately requested explicit approval for ownership and runtime-control changes.
+This internal inspection does not establish an external pilot, merchant consent,
+commercial commitment, or delivery of operational alerts.

@@ -5,6 +5,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { getOrganizationWorkspace, organizationSlugSchema } from '@/lib/server/organization-context'
 import { OrganizationScanWorkspace } from '@/components/organizations/OrganizationScanWorkspace'
+import { OrganizationWorkspaceNav } from '@/components/organizations/OrganizationWorkspaceNav'
 
 export const metadata: Metadata = { title: 'Website scans', robots: { index: false, follow: false } }
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export default async function OrganizationScans({ params }: { params: Promise<{ 
         <>
           <p className="mt-8 break-words text-sm font-medium text-[var(--fg-muted)]">{result.organization!.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Website scans</h1>
+          <OrganizationWorkspaceNav slug={orgSlug} active="scans" />
           <OrganizationScanWorkspace key={result.organization!.id} orgId={result.organization!.id} orgSlug={orgSlug}
             batchLimit={result.organization!.scanAccess.maxTargetsPerBatch ?? 50} dailyLimit={result.organization!.scanAccess.maxTargetsPerDay ?? 250} />
         </>
