@@ -3428,3 +3428,4 @@ rollback;
 \ir organization_scan_execution.sql
 \ir organization_scan_operations.sql
 \ir merchant_report_inputs.sql
+\ir merchant_website_baselines.sql

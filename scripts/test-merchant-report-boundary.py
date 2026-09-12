@@ -57,7 +57,7 @@ try:
     setup = f"""set statement_timeout = '5s';
       create function pg_temp.report_probe(p uuid, m date) returns jsonb
       language plpgsql security invoker as $$begin
-        return jsonb_build_object('data', public.read_merchant_report_inputs(p, m));
+        return jsonb_build_object('data', public.read_merchant_report_with_website(p, m));
         exception when others then return jsonb_build_object('code', SQLSTATE);
       end;$$;
       begin isolation level read committed; set local role authenticated;

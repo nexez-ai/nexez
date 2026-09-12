@@ -11,9 +11,12 @@ function commitSha(): string | null {
 }
 
 export async function runOrganizationScanMaintenance(): Promise<number> {
-  const data = await scanRpc(createAdminClient(), 'cleanup_organization_scans')
+  const admin = createAdminClient()
+  const data = await scanRpc(admin, 'cleanup_organization_scans')
   const count = z.number().int().min(0).max(100).safeParse(data)
   if (!count.success) throw new Error('Invalid scan cleanup response')
+  const websiteCount = z.number().int().min(0).max(100).safeParse(await scanRpc(admin, 'cleanup_merchant_website_baselines'))
+  if (!websiteCount.success) throw new Error('Invalid website cleanup response')
   return count.data
 }
 

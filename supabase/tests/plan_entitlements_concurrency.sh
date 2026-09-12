@@ -861,3 +861,4 @@ SQL
 NEXEZ_TEST_DATABASE_URL="$DATABASE_URL" python3 scripts/test-organization-read-boundary.py
 NEXEZ_TEST_DATABASE_URL="$DATABASE_URL" python3 scripts/test-organization-scan-concurrency.py
 NEXEZ_TEST_DATABASE_URL="$DATABASE_URL" python3 scripts/test-merchant-report-boundary.py
+NEXEZ_TEST_DATABASE_URL="$DATABASE_URL" python3 scripts/test-merchant-website-boundary.py
