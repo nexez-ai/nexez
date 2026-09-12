@@ -7,7 +7,7 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 export type ResolvedAuth = {
   supabase: SupabaseClient
-  user: { id: string; email?: string | null } | null
+  user: { id: string; email?: string | null; is_anonymous?: boolean } | null
 }
 
 /**

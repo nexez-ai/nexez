@@ -3,8 +3,9 @@
 This is a Stage 0 representative-report prototype and an executable prerequisite
 for Stage 2. It is not a connected agency report. The signed-in inspection route
 `/console/[orgSlug]/report-examples` selects fixed synthetic fixtures after a
-current workspace-membership check. It adds no merchant data producer, consent
-grant, financial release, website association or background job.
+current workspace-membership check. The separate [merchant source reader](merchant-report-inputs.md)
+now implements owner-only listing and count inputs behind an initially empty pilot
+gate. Neither route grants agency consent, financial access or a website association.
 
 The proposed task is a short merchant update: establish current listing and
 website readiness, show the limits of available Nexez activity, and select one
@@ -62,7 +63,7 @@ Supported payment statuses are `paid`, `refunded`, `disputed`, and `dispute_won`
 matching the current checkout-order schema. They sum to `eligibleLiveOrders`.
 Separate bounded counts identify excluded test mode, unknown live mode and
 unsupported statuses. These categories describe the same owner/month cohort and
-must be mutually exclusive in the future producer: classify live mode first,
+are mutually exclusive in the owner source producer: classify live mode first,
 then classify supported status only for proven live orders. Payment state does
 not represent fulfillment.
 
@@ -112,8 +113,10 @@ provenance are assertions that a future trusted producer must establish. A calle
 cannot gain authority by supplying any of them. The component cannot verify a
 database relationship, ownership or a cryptographic provenance claim.
 
-Before any production entry point supplies merchant-source data to this component,
-the implementation must:
+Before an organization entry point supplies merchant-source data to this component,
+the implementation must complete the following boundaries. The new owner-only
+source reader implements the bounded listing/count projection for the merchant;
+it does not substitute for organization consent or website baseline collection.
 
 1. Derive the authenticated viewer and current merchant/organization context.
    Enforce the current immutable consent revision, resource scope, history and
@@ -132,8 +135,10 @@ the implementation must:
    raw records and error text out of responses, telemetry, example artifacts and
    organization caches. Test ownership transfer and revoked access explicitly.
 
-None of those data access paths is implemented or proven by this presentation
-slice. The renderer performs no fetch, write, download, scan or consent mutation.
+The presentation slice alone proves none of those access paths. The separate
+owner source reader is documented and tested independently; organization access
+and merchant website history remain undelivered. The renderer performs no fetch,
+write, download, scan or consent mutation.
 
 ## Financial and attribution exclusions
 
@@ -177,7 +182,8 @@ and excluded from indexing. An existing membership authorizes only these example
 it does not authorize real merchant reporting.
 
 Production build and dead-code verification are CI gates under the repository's
-documented local sandbox limitations. This slice adds no database migration. The
+documented local sandbox limitations. The presentation slice adds no database
+migration; the owner source reader has a separate additive migration. The
 examples do not prove live report access, source reconciliation or consent behavior.
 
 The examples make review concrete, but do not satisfy the Stage 0 commercial or
