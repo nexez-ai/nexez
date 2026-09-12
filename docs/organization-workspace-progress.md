@@ -595,10 +595,9 @@ pilot, switch and one-use lease before saving. Daily allowance and active-reques
 limits are serialized per owner. Resource deletion cannot erase usage receipts.
 The existing maintenance path removes expired evidence without scheduling scans.
 
-The local database gauntlet, thirteen concurrency/authority scenarios and focused
-application checks are implemented. The local real-SQL transport check connects an
-immutable snapshot to the report adapter and API. Hosted full-schema checks and
-the remaining release gates must pass before production application. This slice
+The database gauntlet, thirteen concurrency/authority scenarios and focused
+application checks passed. The local real-SQL transport check connects an
+immutable snapshot to the report adapter and API. This slice
 does not enable production collection, choose a merchant, establish source coverage
 or complete the Stage 2 business decisions. Stage 3 organization consent remains
 separate work.
@@ -611,4 +610,24 @@ scenario passed approval, collection, failure display and revocation, with no pa
 errors or horizontal overflow at a 375-pixel viewport. Its API responses were
 synthetic; the database tests independently exercise the actual authorization and
 commit boundary. The default-off switch and empty pilot remain unchanged in
-production. Final CI is the authoritative check of the complete submitted revision.
+production.
+
+Implementation revision `fd1683611d8a1e5799c65c8e14dbc390d3be1121` in
+[PR #294](https://github.com/nexez-ai/nexez/pull/294) passed
+[CI](https://github.com/nexez-ai/nexez/actions/runs/34675146348), including 5,517
+tests, production build and dead-code checks;
+[full schema replay](https://github.com/nexez-ai/nexez/actions/runs/34675146357),
+including the independent website-collection concurrency checks; and
+[28 E2E cases](https://github.com/nexez-ai/nexez/actions/runs/34675146385).
+One existing opt-in benchmark and one deployment-only intake case were skipped.
+The corresponding Vercel preview reached READY. Final PR checks remain the
+authoritative evidence for its latest revision.
+
+The data-free Supabase preview applied migration `20260912044027` and passed the
+rollback-only website SQL gauntlet against the full hosted schema. Readback
+confirmed zero users, pilots, associations, collections and snapshots, a false
+collection switch, and no disabled page triggers. Hosted security and performance
+advisors found no warnings or errors on the new objects. Deliberately policy-free
+private tables with no API table grants and unused indexes on the empty preview
+produced informational notices only. The production migration and release remain
+pending approval; no merchant report pilot or website collection is activated.
