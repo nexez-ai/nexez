@@ -483,6 +483,10 @@ values (
   statement_timestamp()
 );
 
+update public.seller_growth_campaigns
+set is_public_launch = true
+where campaign_key = 'pgtap-statement-time-growth';
+
 insert into auth.users (
   id,
   email,

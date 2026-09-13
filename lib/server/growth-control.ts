@@ -349,7 +349,9 @@ export async function getGrowthControlSnapshot(
   const { data: campaignRow, error: campaignError } = await admin
     .from('seller_growth_campaigns')
     .select('id, campaign_key, name, status, grant_plan_id, grant_duration_days, invite_slots, invite_expires_days, max_grants, starts_at, signup_closes_at, enrollment_mode, updated_at')
+    .eq('is_public_launch', true)
     .order('starts_at', { ascending: false })
+    .order('id', { ascending: true })
     .limit(1)
     .maybeSingle<CampaignRow>()
 

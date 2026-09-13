@@ -29,6 +29,22 @@ function client(
 }
 
 describe('getGrowthControlSnapshot', () => {
+  it('scopes the default operator dashboard to public Launch campaigns', async () => {
+    const db = client((ctx) => {
+      if (ctx.table === 'seller_growth_campaigns') {
+        expect(ctx.eqs.is_public_launch).toBe(true)
+        expect(ctx.calls).toContainEqual(['order', 'id', { ascending: true }])
+        // Operators must still see a paused public campaign to diagnose it.
+        expect(ctx.eqs.status).toBeUndefined()
+        return { data: { ...campaign, status: 'paused' }, error: null }
+      }
+      return { data: [], error: null }
+    }, { data: {}, error: null })
+    const snapshot = await getGrowthControlSnapshot(db)
+    expect(snapshot.campaign).toMatchObject({ id: campaign.id, status: 'paused' })
+    expect(db.rpc).toHaveBeenCalledWith('seller_growth_control_snapshot', { p_campaign_id: campaign.id })
+  })
+
   it('loads aggregate telemetry while redacting recipient and owner data', async () => {
     const db = client((ctx) => {
       if (ctx.table === 'seller_growth_campaigns') return { data: campaign, error: null }

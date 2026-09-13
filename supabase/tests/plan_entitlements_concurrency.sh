@@ -567,6 +567,10 @@ insert into public.seller_growth_campaigns (
   statement_timestamp() + interval '1 hour'
 );
 
+update public.seller_growth_campaigns
+set is_public_launch = true
+where campaign_key = 'plan-entitlement-concurrency';
+
 insert into auth.users (
   instance_id,
   id,

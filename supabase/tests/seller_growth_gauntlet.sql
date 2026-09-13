@@ -19,6 +19,10 @@ do $gauntlet$
 declare
   v_suffix text := replace(gen_random_uuid()::text, '-', '');
   v_campaign uuid := gen_random_uuid();
+  v_canary_campaign uuid := gen_random_uuid();
+  v_canary_owner_1 uuid := gen_random_uuid();
+  v_canary_owner_2 uuid := gen_random_uuid();
+  v_canary_fingerprint text;
   v_owner uuid := gen_random_uuid();
   v_duplicate uuid := gen_random_uuid();
   v_paid uuid := gen_random_uuid();
@@ -72,7 +76,8 @@ begin
     invite_slots,
     invite_expires_days,
     max_grants,
-    starts_at
+    starts_at,
+    is_public_launch
   )
   values (
     v_campaign,
@@ -84,8 +89,51 @@ begin
     2,
     14,
     3,
-    now() - interval '10 minutes'
+    now() - interval '10 minutes',
+    true
   );
+
+  -- Reproduce the production regression: a newer active internal campaign is
+  -- full, while the explicitly public Launch campaign still has capacity.
+  -- Omitting is_public_launch must fail closed even with enrollment_mode=open.
+  insert into public.seller_growth_campaigns (
+    id, campaign_key, name, status, grant_plan_id, grant_duration_days,
+    invite_slots, max_grants, starts_at
+  ) values (
+    v_canary_campaign, 'canary-' || v_suffix, 'Internal certification',
+    'active', 'pro', 365, 0, 2, now() - interval '5 minutes'
+  );
+  insert into auth.users (id) values (v_canary_owner_1), (v_canary_owner_2);
+  insert into public.promotional_plan_grants (
+    owner_id, campaign_id, plan_id, source, starts_at, ends_at
+  ) values
+    (v_canary_owner_1, v_canary_campaign, 'pro', 'admin', now(), now() + interval '365 days'),
+    (v_canary_owner_2, v_canary_campaign, 'pro', 'admin', now(), now() + interval '365 days');
+  select md5(jsonb_agg(to_jsonb(g) order by g.id)::text)
+  into v_canary_fingerprint
+  from public.promotional_plan_grants g where g.campaign_id = v_canary_campaign;
+
+  insert into growth_gauntlet_results (scenario, passed, detail)
+  select 'new campaigns default to internal-only', not is_public_launch,
+    'An active open-enrollment canary must not become public by default.'
+  from public.seller_growth_campaigns where id = v_canary_campaign;
+
+  v_guarded := false;
+  begin
+    update public.seller_growth_campaigns
+    set is_public_launch = true where id = v_canary_campaign;
+  exception when check_violation then
+    v_guarded := true;
+  end;
+  insert into growth_gauntlet_results (scenario, passed, detail)
+  values ('public Launch scope rejects a non-Launch plan', v_guarded,
+    'A Pro certification campaign cannot be misclassified as public Launch.');
+
+  insert into growth_gauntlet_results (scenario, passed, detail)
+  values ('public campaign designation remains service-only',
+    not has_column_privilege('anon', 'public.seller_growth_campaigns', 'is_public_launch', 'UPDATE')
+      and not has_column_privilege('authenticated', 'public.seller_growth_campaigns', 'is_public_launch', 'UPDATE'),
+    'The new flag does not widen browser-role access to campaign controls.');
 
   insert into auth.users (
     instance_id,
@@ -139,10 +187,15 @@ begin
 
   insert into growth_gauntlet_results (scenario, passed, detail)
   values (
-    'verified new seller receives fixed Launch grant',
+    'verified new seller receives Launch despite newer exhausted canary',
     v_owner_grant is not null and public.owner_plan_rank(v_owner) = 1,
     'Expected one 180-day welcome grant and Launch rank.'
   );
+
+  -- Give the internal campaign spare capacity for the remaining referral,
+  -- cohort, paused, exhausted and ended scenarios. It must never be a fallback.
+  update public.seller_growth_campaigns
+  set max_grants = 100 where id = v_canary_campaign;
 
   insert into public.pages (id, owner_id, name, slug, is_published)
   values
@@ -647,6 +700,15 @@ begin
           and campaign_id = v_campaign
       ),
     'Ended campaigns reject further controls and new activations while existing grants remain fixed.';
+
+  insert into growth_gauntlet_results (scenario, passed, detail)
+  select 'internal grants and principals are preserved',
+    count(*) = 2
+      and md5(jsonb_agg(to_jsonb(g) order by g.id)::text) = v_canary_fingerprint
+      and public.owner_plan_rank(v_canary_owner_1) = 2
+      and public.owner_plan_rank(v_canary_owner_2) = 2,
+    'Internal campaign never issues to public sellers; its existing Pro grants remain unchanged.'
+  from public.promotional_plan_grants g where g.campaign_id = v_canary_campaign;
 end
 $gauntlet$;
 

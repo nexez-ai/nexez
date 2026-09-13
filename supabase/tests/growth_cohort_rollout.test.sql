@@ -34,6 +34,10 @@ insert into public.seller_growth_campaigns (
   now() - interval '1 hour'
 );
 
+update public.seller_growth_campaigns
+set is_public_launch = true
+where campaign_key = 'cohort-rollout-test';
+
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
