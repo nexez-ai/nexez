@@ -199,7 +199,8 @@ begin
     and g.campaign_id = v_campaign
     and g.source = 'welcome'
     and g.status = 'active'
-    and g.starts_at = now()
+    -- Issuance uses statement time, not the earlier BEGIN transaction time.
+    and g.starts_at = statement_timestamp()
     and g.ends_at - g.starts_at = interval '180 days';
 
   insert into growth_gauntlet_results (scenario, passed, detail)
