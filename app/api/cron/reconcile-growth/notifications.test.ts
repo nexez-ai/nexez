@@ -213,10 +213,10 @@ describe('reconcile-growth notifications', () => {
 
 describe('describeGrantDuration', () => {
   it('says what the merchant was sold', () => {
-    expect(describeGrantDuration(180)).toBe('six months')
-    expect(describeGrantDuration(30)).toBe('one month')
-    expect(describeGrantDuration(365)).toBe('one year')
-    expect(describeGrantDuration(730)).toBe('two years')
+    expect(describeGrantDuration(180)).toBe('180 days')
+    expect(describeGrantDuration(30)).toBe('30 days')
+    expect(describeGrantDuration(365)).toBe('365 days')
+    expect(describeGrantDuration(730)).toBe('730 days')
   })
 
   it('falls back to days when the window is not a round period', () => {
@@ -228,5 +228,7 @@ describe('describeGrantDuration', () => {
     expect(describeGrantDuration(0)).toBe('your complimentary period')
     expect(describeGrantDuration(Number.NaN)).toBe('your complimentary period')
     expect(describeGrantDuration(-5)).toBe('your complimentary period')
+    expect(describeGrantDuration(1.5)).toBe('your complimentary period')
+    expect(describeGrantDuration(Infinity)).toBe('your complimentary period')
   })
 })

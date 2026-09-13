@@ -12,7 +12,7 @@ describe('buildLaunchAccessStartedEmail', () => {
   const base = {
     businessName: 'Axle Plumbing Co.',
     listingName: 'Emergency Plumbing',
-    durationLabel: 'six months',
+    durationLabel: '180 days',
     endsAt: '2027-02-24T00:00:00.000Z',
     dashboardUrl: 'https://app.nexez.ai/dashboard',
   }
@@ -32,9 +32,14 @@ describe('buildLaunchAccessStartedEmail', () => {
     expect(stripTags(mail.html)).toContain('February 24, 2027')
   })
 
-  it('does not imply a card is on file', async () => {
+  it('does not claim knowledge of stored cards or promise to downgrade a paid plan', async () => {
     const mail = await buildLaunchAccessStartedEmail(base)
-    expect(mail.text.toLowerCase()).toContain('no card')
+    for (const part of [mail.text, stripTags(mail.html)]) {
+      expect(part).toContain('No card is required for this promotion')
+      expect(part).toContain('unless you choose a paid plan')
+      expect(part).not.toContain('no card is on file')
+      expect(part).not.toContain('moves to Free automatically')
+    }
   })
 
   it('carries a working call to action', async () => {
@@ -47,7 +52,7 @@ describe('buildLaunchAccessStartedEmail', () => {
 describe('buildPublishNudgeEmail', () => {
   const base = {
     businessName: 'Axle Plumbing Co.',
-    durationLabel: 'six months',
+    durationLabel: '180 days',
     publishUrl: 'https://app.nexez.ai/dashboard',
   }
 
@@ -59,13 +64,23 @@ describe('buildPublishNudgeEmail', () => {
 
   it('falls back to a truthful hold when the campaign has no closing date', async () => {
     const mail = await buildPublishNudgeEmail({ ...base, reservedUntil: null })
-    expect(mail.text).toContain('The group fills')
+    expect(mail.text).toContain('Subject to campaign availability')
+    expect(mail.text).not.toContain('spot is still reserved')
   })
 
   it('formats a closing date rather than printing an ISO timestamp', async () => {
     const mail = await buildPublishNudgeEmail({ ...base, reservedUntil: '2026-09-09T00:00:00.000Z' })
     expect(mail.text).toContain('September 9, 2026')
     expect(mail.text).not.toContain('2026-09-09T')
+  })
+
+  it('does not promise activation from publication alone', async () => {
+    const mail = await buildPublishNudgeEmail(base)
+    for (const part of [mail.text, stripTags(mail.html)]) {
+      expect(part).toContain('email and business identity are verified')
+      expect(part).toContain('all qualification checks pass')
+      expect(part).not.toMatch(/access begins immediately|clock starts only when your first listing goes live/i)
+    }
   })
 })
 
@@ -92,6 +107,16 @@ describe('buildScanResultsEmail', () => {
     const mail = await buildScanResultsEmail(base)
     expect(mail.html).toContain(base.unsubscribeUrl)
     expect(mail.text).toContain(base.unsubscribeUrl)
+  })
+
+  it('makes the public offer conditional and exact in both formats', async () => {
+    const mail = await buildScanResultsEmail(base)
+    for (const part of [mail.text, stripTags(mail.html)]) {
+      expect(part).toContain('180 days of Nexez Launch')
+      expect(part).toContain('Subject to campaign eligibility and availability')
+      expect(part).toContain('all qualification checks pass')
+      expect(part).toContain('does not renew into a paid subscription')
+    }
   })
 
   it('never renders a broken score into a stranger inbox', async () => {

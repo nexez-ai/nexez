@@ -159,7 +159,7 @@ export const emailPreviewFixtures: EmailPreviewFixture[] = [
   },
   {
     id: 'account-growth-invite',
-    element: <SellerGrowthInviteEmail inviterBusinessName="Axle Plumbing Co." inviteeEmail="new-owner@example.com" durationLabel="six months" claimUrl={`${APP}/invite/claim/token_123`} />,
+    element: <SellerGrowthInviteEmail inviterBusinessName="Axle Plumbing Co." inviteeEmail="new-owner@example.com" durationLabel="180 days" claimUrl={`${APP}/invite/claim/token_123`} />,
     expectedCta: `${APP}/invite/claim/token_123`,
     expectedState: null,
     expectedCopy: 'Your Nexez Launch invitation is ready',
@@ -212,7 +212,7 @@ export const emailPreviewFixtures: EmailPreviewFixture[] = [
     element: <LaunchAccessStartedEmail
       businessName="Axle Plumbing Co."
       listingName="Emergency Plumbing"
-      durationLabel="six months"
+      durationLabel="180 days"
       endsOn="24 February 2027"
       dashboardUrl={`${APP}/dashboard`}
     />,
@@ -223,7 +223,7 @@ export const emailPreviewFixtures: EmailPreviewFixture[] = [
     id: 'account-publish-nudge',
     element: <PublishNudgeEmail
       businessName="Axle Plumbing Co."
-      durationLabel="six months"
+      durationLabel="180 days"
       reservedUntil="9 September 2026"
       publishUrl={`${APP}/dashboard/listings/listing_123/edit`}
     />,

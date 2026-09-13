@@ -445,7 +445,7 @@ function PlanStep({
             on Free or choose a seven-day paid-plan trial. No card is required today.
           </>
         ) : (
-          <>Start permanently on Free or choose a seven-day paid-plan trial. Eligible verified Free businesses can receive Launch for six months while the campaign is available.</>
+          <>Start permanently on Free or choose a seven-day paid-plan trial. Eligible verified Free businesses with a live listing can receive Launch for 180 days while the campaign is available.</>
         )}
       </p>
       <div className="nx-onboard-plan-grid">
@@ -481,7 +481,7 @@ function PlanStep({
               </ul>
               {plan.id === 'free' ? (
                 <p className="mt-4 rounded-xl border border-[var(--nx-auth-ready)]/20 bg-[var(--nx-auth-ready)]/10 p-3 text-xs leading-5 text-[var(--nx-auth-soft)]">
-                  Eligible verified businesses can receive six complimentary months of Launch access while the campaign is available.
+                  Eligible verified businesses with a live listing can receive 180 complimentary days of Launch access while the campaign is available.
                 </p>
               ) : null}
               <div className="mt-auto pt-6">
@@ -763,7 +763,7 @@ function LaunchStep({ selectedPlan, onDashboard }: { selectedPlan: (typeof billi
       </h3>
       <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[var(--nx-auth-muted)]">
         {isFree
-          ? 'Build and publish your first agent-readable listing. Eligible verified businesses can receive six months of Launch access and two business invite passes while the campaign is available.'
+          ? 'Build and publish your first agent-readable listing. Eligible businesses can receive 180 days of Launch access and two business invite passes after email and business verification, while the campaign is available.'
           : `Your seven-day ${selectedPlan.name} trial is ready. Build your first listing, publish it, then track which AI traffic turns into real demand.`}
       </p>
       <div className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-3">

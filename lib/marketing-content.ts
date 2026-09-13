@@ -560,7 +560,7 @@ export const marketingPages: Record<string, MarketingPageContent> = {
 export const pricingFaqs = [
   { question: 'Do I pay a commission if no one books?', answer: 'No. Nexez commission applies only to successful transactions settled through Nexez. Paid-plan subscriptions and card-processing fees are separate.' },
   { question: 'Can I change plans later?', answer: 'Yes, upgrade or downgrade from your Billing page. Prorated billing.' },
-  { question: 'How does complimentary Launch access work?', answer: 'Start on Free, then verify and publish your business. Eligible businesses can receive six months of Launch access while the limited campaign is available. No card is required and there is no automatic charge. Afterward, the account returns to Free unless upgraded.' },
+  { question: 'How does complimentary Launch access work?', answer: 'Start on Free, then verify your email and business identity and publish a listing. Eligible businesses can receive 180 days of Launch access once all qualification checks pass, while the campaign is available. No card is required for the promotion, and it does not renew into a paid subscription. Afterward, the account returns to Free unless you choose a paid plan.' },
   { question: 'What if I need custom pricing?', answer: 'Enterprise plans are fully customizable. Reach out via support.' },
 ] as const
 

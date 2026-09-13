@@ -41,7 +41,8 @@ describe('GET /api/cron/reconcile-growth', () => {
     expect((await GET(cronRequest())).status).toBe(401)
   })
 
-  it('expires a grant and preserves one selected Free listing without deleting drafts', async () => {
+  it.each(['free', 'pro'])('expires a grant without charging or replacing the underlying %s plan', async (underlyingPlan) => {
+    refs.getOwnerPlanId.mockResolvedValue(underlyingPlan)
     const grant = {
       id: 'grant-1',
       campaign_id: 'campaign-1',
@@ -79,14 +80,21 @@ describe('GET /api/cron/reconcile-growth', () => {
     expect(body).toMatchObject({
       ok: true,
       grantsExpired: 1,
-      fallbackListingsApplied: 1,
+      fallbackListingsApplied: underlyingPlan === 'free' ? 1 : 0,
     })
     // The cron no longer applies the retired grandfather baseline or races page
     // updates itself. Expiring the grant invokes the canonical DB reconciler,
     // which preserves page-2 and drafts page-1 under the same transaction lock.
     expect(writes.some((write) => write.table === 'pages' && write.op === 'update')).toBe(false)
     expect(writes.some((write) => write.table === 'pages' && write.op === 'delete')).toBe(false)
+    expect(writes.some((write) => write.table === 'billing_subscriptions')).toBe(false)
     const grantWrite = writes.find((write) => write.table === 'promotional_plan_grants' && write.op === 'update')
-    expect(grantWrite?.payload).toMatchObject({ status: 'expired', fallback_page_id: 'page-2' })
+    expect(grantWrite?.payload).toEqual(underlyingPlan === 'free'
+      ? { status: 'expired', fallback_page_id: 'page-2' }
+      : { status: 'expired' })
+    expect(grantWrite?.calls).toEqual(expect.arrayContaining([
+      ['eq', 'status', 'active'],
+      ['lte', 'ends_at', expect.any(String)],
+    ]))
   })
 })

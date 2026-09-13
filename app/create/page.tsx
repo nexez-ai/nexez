@@ -809,7 +809,7 @@ export default function CreatePage() {
             <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--signal)] to-[var(--ready)] text-lg font-bold text-[#0A0A0F]">N</div>
             <h2 className="mt-4 text-2xl font-semibold">Create a Free account to publish</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Your listing is saved. Create a Free account to publish one listing and open your dashboard. Eligible verified businesses can receive six complimentary months of Launch tools while the campaign is available.
+              Your listing is saved. Create a Free account to publish one listing and open your dashboard. Eligible businesses can receive 180 complimentary days of Launch tools once email and business verification are complete and a listing is live, while the campaign is available.
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <a href="/onboard?next=/create" className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-gradient-to-r from-[var(--signal)] to-[var(--ready)] px-5 font-medium text-[#0A0A0F] hover:opacity-90">
