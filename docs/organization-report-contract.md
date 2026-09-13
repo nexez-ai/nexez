@@ -109,7 +109,7 @@ the report and its nested projections cause validation failure.
 
 Schema validation is not authorization. The `merchant_sources` data-basis label,
 scope UUIDs, source digest, association method and `merchant_website_snapshot`
-provenance are assertions that a future trusted producer must establish. A caller
+provenance are assertions that a trusted producer must establish. A caller
 cannot gain authority by supplying any of them. The component cannot verify a
 database relationship, ownership or a cryptographic provenance claim.
 
@@ -136,9 +136,12 @@ it does not substitute for organization consent or website baseline collection.
    organization caches. Test ownership transfer and revoked access explicitly.
 
 The presentation slice alone proves none of those access paths. The separate
-owner source reader is documented and tested independently; organization access
-and merchant website history remain undelivered. The renderer performs no fetch,
-write, download, scan or consent mutation.
+owner source reader is documented and tested independently. The
+[merchant website baseline producer](merchant-website-baselines.md) implements
+current-owner approval, immutable observations and a current-association read,
+with collection disabled by default. Organization access and historical website
+comparisons remain future work. The renderer performs no fetch, write, download,
+scan or consent mutation.
 
 ## Financial and attribution exclusions
 

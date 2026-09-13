@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { AGENT_READY_STANDARD, getReadinessCriteria } from '@/lib/agent-page'
 import { organizationReportSchema, REPORT_METRIC_DEFINITIONS, type OrganizationReport } from '@/lib/organization-reports'
+import { websiteSnapshotSchema, websiteMetricFromSnapshot } from '@/lib/merchant-website-baselines'
 
 export const MERCHANT_REPORT_HEADERS = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' }
 export const merchantReportQuerySchema = z.object({
@@ -21,6 +22,7 @@ const covered = {
 }
 const inputSchema = z.object({
   ownerId: z.uuid(), listingId: z.uuid(), month: merchantReportQuerySchema.shape.month, observedAt: timestamp,
+  websiteSnapshot: websiteSnapshotSchema.nullable(),
   listing: z.union([
     z.object({ state: z.literal('calculation_failed') }).strict(),
     z.object({
@@ -74,7 +76,7 @@ export async function readMerchantReportInputs(
   }
   const { listingId, month } = parsed.data
   try {
-    const { data, error } = await client.rpc('read_merchant_report_inputs', {
+    const { data, error } = await client.rpc('read_merchant_report_with_website', {
       p_listing_id: listingId, p_month: `${month}-01`,
     }).abortSignal(AbortSignal.timeout(5_000))
     if (error) {
@@ -128,7 +130,7 @@ export async function readMerchantReportInputs(
       schemaVersion: 1, dataBasis: 'merchant_sources', generatedAt: observedAt,
       scope: { ownerId: raw.ownerId, listingId, merchantName: raw.listing.state === 'available' ? raw.listing.name.slice(0, 200) || 'Merchant listing' : 'Merchant listing' },
       period: { from: from.toISOString(), toExclusive: to.toISOString(), timezone: 'UTC' },
-      listing, website: { state: 'not_collected' }, traffic: counts('traffic'), orders: counts('orders'),
+      listing, website: websiteMetricFromSnapshot(raw.websiteSnapshot), traffic: counts('traffic'), orders: counts('orders'),
       financialSummary: { state: 'no_permission', reason: 'financial_disclosure_not_enabled' },
       attribution: { state: 'no_coverage', reason: 'attribution_not_implemented' },
     })

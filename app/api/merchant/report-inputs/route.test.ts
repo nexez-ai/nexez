@@ -13,7 +13,7 @@ const ownerId = '9a000000-0000-4000-8000-000000000001'
 const listingId = '9b000000-0000-4000-8000-000000000001'
 const query = `listingId=${listingId}&month=2026-08`
 const request = (search = query) => new Request(`https://app.nexez.ai/api/merchant/report-inputs?${search}`)
-const row = { ownerId, listingId, month: '2026-08', observedAt: '2026-09-11T00:00:00Z',
+const row = { ownerId, listingId, month: '2026-08', observedAt: '2026-09-11T00:00:00Z', websiteSnapshot: null,
   listing: { state: 'available', name: 'Merchant', description: null, isPublished: false, standardVersion: '2026.1',
     readinessSignals: [true, true, false, false, false, false, false, false, false, false, false] },
   traffic: { state: 'no_coverage' }, orders: { state: 'no_coverage' } }
@@ -85,6 +85,21 @@ describe('merchant report input API', () => {
       expect(report.orders).toEqual({ state: 'no_coverage' })
       expect(report.website).toEqual({ state: 'not_collected' })
       expect(JSON.stringify(report)).not.toMatch(/evidenceId|evidenceSha256|readinessSignals|amount_cents|buyer_email/)
+    })
+  }
+  if (process.env.NEXEZ_WEBSITE_SQL_FIXTURE) {
+    it('transports an actual immutable PostgreSQL snapshot into the owner report', async () => {
+      const actual = JSON.parse(readFileSync(process.env.NEXEZ_WEBSITE_SQL_FIXTURE!, 'utf8'))
+      auth.mockResolvedValue({ user: { id: actual.ownerId }, supabase: { rpc } })
+      response.mockResolvedValue({ data: actual, error: null })
+      const res = await GET(request(`listingId=${actual.listingId}&month=${actual.month}`))
+      expect(res.status).toBe(200)
+      const report = await res.json()
+      expect(report.website).toMatchObject({ state: 'available', sourceVersion: actual.websiteSnapshot.sourceVersion,
+        value: { snapshotId: actual.websiteSnapshot.id, associationId: actual.websiteSnapshot.associationId,
+          associationMethod: 'merchant_approved', provenance: 'merchant_website_snapshot', result: { score: 100, version: 2 } } })
+      expect(report.traffic).toEqual({ state: 'no_coverage' })
+      expect(JSON.stringify(report)).not.toMatch(/leaseToken|PRIVATE|pageText|website_url_at_approval/)
     })
   }
 })

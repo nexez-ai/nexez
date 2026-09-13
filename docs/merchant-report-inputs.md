@@ -42,7 +42,7 @@ Cookie and Authorization.
 | Current listing | Name, description, publication state and eleven canonical readiness presence signals | Current owner and selected listing; no draft, offer, contact, URL or integration payload |
 | Recorded traffic | Total records, detected AI subset and verified-server/unverified-client/legacy partition | Both stored owner and selected listing; attested collection interval |
 | Durable orders | Proven-live supported payment counts plus disjoint test/unknown-mode/unsupported-status exclusions | Stored owner account, including other or deleted listings; attested interval |
-| Website | `not_collected` | No approved association or merchant snapshot producer exists yet |
+| Website | Latest immutable observation for the current merchant-approved association | The website baseline slice adds the producer and a new composed report RPC; no association means `not_collected`, and failed observations are calculation unavailable |
 | Financial summary and attribution | Existing disabled/unavailable states | No amounts, buyer details, transaction identifiers or inferred conversion rate |
 
 The candidate period is one of the previous twelve completed UTC calendar months.
@@ -128,7 +128,10 @@ separate release steps. Disable a pilot by clearing its enabled flag or expiring
 its access row; remove a coverage row to stop that metric. Existing merchant
 analytics and the internal scanner continue to use their existing paths.
 
-The next source slice is merchant-approved website association and immutable
-baseline collection. Agency reporting still requires the Stage 3 consent,
+The [website baseline slice](merchant-website-baselines.md) implements merchant
+approval and immutable collection behind a default-off switch. The application
+now uses `read_merchant_report_with_website` to compose these sources in one
+statement snapshot; the original `read_merchant_report_inputs` RPC is unchanged.
+Agency reporting still requires the Stage 3 consent,
 capability and current-authority boundary. Real participant/source evidence and
 the operator's confirmation of the candidate period remain open.

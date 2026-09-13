@@ -18,7 +18,7 @@ export class ScanNetworkError extends Error {
 /** One bounded scan, including every redirect and auxiliary request. Nothing
  * returned by this context belongs in an event payload or durable step result.
  */
-export function createScanNetworkContext(token: string, orgId: string | null = null, client?: SupabaseClient) {
+export function createScanNetworkContext(token: string, orgId: string | null = null, client?: SupabaseClient, approvedOrigin?: string) {
   let admin: SupabaseClient
   try { admin = client ?? createAdminClient() } catch { throw new ScanNetworkError('network_error') }
   // Anonymous routes have a 30-second invocation budget. Leave room for
@@ -65,6 +65,9 @@ export function createScanNetworkContext(token: string, orgId: string | null = n
     if (signal.aborted) throw stopped ?? new ScanNetworkError('network_error')
     if (value.length > 2048 || getImportUrlError(value)) fail('unsafe_target')
     const url = new URL(value)
+    // Merchant snapshots are confined to the explicitly approved origin. This
+    // covers every redirect, including the robots.txt exemption and all probes.
+    if (approvedOrigin && url.origin !== approvedOrigin) fail('unsafe_target')
     if (url.port) fail('unsafe_target')
     await pressure(url)
     metrics.probeCount += 1

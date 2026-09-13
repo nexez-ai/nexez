@@ -14,7 +14,7 @@ organization product. The current delivery boundaries are:
 |---|---|
 | 0: commercial and data decisions | Open participant, report, source, price, consent-copy and activation-policy evidence. The draft investigation below advances an independent technical prerequisite. |
 | 1: scanner workspace | Foundation, execution and operations shipped. Hosted Inngest recovery and internal inspection activation are verified. External pilot usefulness and unit economics remain open. |
-| 2: merchant report foundations | Contract/examples shipped. The owner-only listing, traffic and order-count reader is implemented for review, with pilot and coverage tables empty by default. Merchant website baseline collection and real source/reporting decisions remain open. |
+| 2: merchant report foundations | Contract/examples and owner-only listing, traffic and order-count reader shipped. Merchant website approval and baseline collection are implemented for review with collection disabled by default. Actual pilot, source coverage and reporting decisions remain open. |
 | 3: consent and first authorized report | Not delivered. Includes acceptance, narrowing, revocation, disclosure and organization report access. |
 | 4: applied and verified improvement | Not delivered. The draft investigation fixes existing editor prerequisites, without implementing proposals or merchant application transactions. |
 | 5: evidence window and hardening | Not completed. Requires actual repeated use over the planned observation window. |
@@ -558,8 +558,14 @@ opt-in benchmark skipped, after allowing loopback sockets for five existing
 certification tests. TypeScript, ESLint (zero errors, fourteen existing warnings),
 palette and em-dash checks passed. Local advisors found no warnings on the new
 objects; the minimal harness's page policy has an unrelated init-plan warning.
-Full schema replay, production build and dead-code checks remain CI gates. This slice
-has not applied a production migration or enrolled a merchant report pilot.
+The final PR head passed full schema replay, production build, dead-code checks,
+5,464 tests and 27 E2E cases. After explicit approval, the production migration was
+applied and PR #293 merged as `29f0c38f2fb86eccd34e67493fc0af9c691a4463` on September
+12, 2026. The production deployment, main CI, migration replay and all thirteen
+release-certification checks passed. The optional nested Stripe price-catalog
+check was skipped because its CI secret was unavailable. No report pilot or
+collection coverage was activated. The complete release evidence is recorded in
+[PR #293](https://github.com/nexez-ai/nexez/pull/293).
 
 The hosted Supabase preview also passed the corrected SQL gauntlet against the
 full schema. This caught and corrected fixture assumptions about the `draft`
@@ -573,3 +579,55 @@ The full-schema concurrency fixture also accounts for the existing immutable-own
 trigger: it proves ordinary owner updates deny, then simulates a privileged repair
 only inside its isolated writer transaction. No application ownership-transfer
 feature or relaxed production guard is introduced.
+
+## Slice G: merchant-approved website baselines
+
+The [website baseline slice](merchant-website-baselines.md) adds owner approval of
+the listing's current website, a separate on-demand collection command, immutable
+observations and a current-association report source. Its settings panel is hidden
+for an inactive empty pilot. Merchant approval is distinguished from domain
+ownership verification. The collector cannot import prospect history or follow a
+redirect outside the exact approved origin.
+
+Collection is off by default and requires the separate owner report pilot. SQL
+rechecks account status, current ownership, the original website, association,
+pilot, switch and one-use lease before saving. Daily allowance and active-request
+limits are serialized per owner. Resource deletion cannot erase usage receipts.
+The existing maintenance path removes expired evidence without scheduling scans.
+
+The database gauntlet, thirteen concurrency/authority scenarios and focused
+application checks passed. The local real-SQL transport check connects an
+immutable snapshot to the report adapter and API. This slice
+does not enable production collection, choose a merchant, establish source coverage
+or complete the Stage 2 business decisions. Stage 3 organization consent remains
+separate work.
+
+Local verification passed 135 focused checks including real-SQL report transport,
+the full root run (5,516 passed, one existing opt-in benchmark skipped), TypeScript,
+ESLint, palette and em-dash checks. The subsequent in-progress replay display
+regression also passed its component test. The authenticated settings browser
+scenario passed approval, collection, failure display and revocation, with no page
+errors or horizontal overflow at a 375-pixel viewport. Its API responses were
+synthetic; the database tests independently exercise the actual authorization and
+commit boundary. The default-off switch and empty pilot remain unchanged in
+production.
+
+Implementation revision `fd1683611d8a1e5799c65c8e14dbc390d3be1121` in
+[PR #294](https://github.com/nexez-ai/nexez/pull/294) passed
+[CI](https://github.com/nexez-ai/nexez/actions/runs/34675146348), including 5,517
+tests, production build and dead-code checks;
+[full schema replay](https://github.com/nexez-ai/nexez/actions/runs/34675146357),
+including the independent website-collection concurrency checks; and
+[28 E2E cases](https://github.com/nexez-ai/nexez/actions/runs/34675146385).
+One existing opt-in benchmark and one deployment-only intake case were skipped.
+The corresponding Vercel preview reached READY. Final PR checks remain the
+authoritative evidence for its latest revision.
+
+The data-free Supabase preview applied migration `20260912044027` and passed the
+rollback-only website SQL gauntlet against the full hosted schema. Readback
+confirmed zero users, pilots, associations, collections and snapshots, a false
+collection switch, and no disabled page triggers. Hosted security and performance
+advisors found no warnings or errors on the new objects. Deliberately policy-free
+private tables with no API table grants and unused indexes on the empty preview
+produced informational notices only. The production migration and release remain
+pending approval; no merchant report pilot or website collection is activated.
