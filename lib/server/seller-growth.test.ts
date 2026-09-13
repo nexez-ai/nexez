@@ -59,6 +59,53 @@ function adminFor(opts: {
 }
 
 describe('getSellerGrowthState', () => {
+  it('selects only a public open-window Launch campaign, not a newer canary', async () => {
+    const canary = { ...campaign, id: 'canary-1', grant_plan_id: 'pro', grant_duration_days: 365 }
+    const query = vi.fn((ctx) => {
+      if (ctx.table === 'seller_growth_campaigns') {
+        expect(ctx.eqs).toMatchObject({ is_public_launch: true, status: 'active' })
+        expect(ctx.calls).toContainEqual(['order', 'id', { ascending: true }])
+        expect(ctx.calls.some(([method, value]: [string, string]) => (
+          method === 'or' && value.startsWith('signup_closes_at.is.null,signup_closes_at.gte.')
+        ))).toBe(true)
+        return { data: ctx.eqs.is_public_launch ? campaign : canary, error: null }
+      }
+      return { data: null, error: null }
+    })
+    const state = await getSellerGrowthState(createSupabaseMock(query) as any, 'owner-1')
+    expect(state.campaign).toMatchObject({ id: campaign.id, grantPlanId: 'launch', grantDurationDays: 180 })
+  })
+
+  it('fails closed when no public campaign exists', async () => {
+    const db = createSupabaseMock((ctx) => {
+      if (ctx.table === 'seller_growth_campaigns') {
+        expect(ctx.eqs.is_public_launch).toBe(true)
+      }
+      return { data: null, error: null }
+    })
+    const state = await getSellerGrowthState(db as any, 'owner-1')
+    expect(state.available).toBe(false)
+    expect(state.campaign).toBeNull()
+  })
+
+  it('still displays an owner existing internal grant through an exact campaign lookup', async () => {
+    const canary = { ...campaign, id: 'canary-1', grant_plan_id: 'pro', grant_duration_days: 365 }
+    const canaryGrant = { ...grant, campaign_id: canary.id, plan_id: 'pro', source: 'admin' }
+    const db = createSupabaseMock((ctx) => {
+      if (ctx.table === 'seller_growth_campaigns' && ctx.eqs.id) {
+        expect(ctx.eqs.id).toBe(canary.id)
+        expect(ctx.eqs.is_public_launch).toBeUndefined()
+        return { data: canary, error: null }
+      }
+      if (ctx.table === 'seller_growth_campaigns') return { data: campaign, error: null }
+      if (ctx.table === 'promotional_plan_grants') return { data: canaryGrant, error: null }
+      return { data: null, error: null }
+    })
+    const state = await getSellerGrowthState(db as any, 'canary-owner')
+    expect(state.grant).toMatchObject({ planId: 'pro', source: 'admin' })
+    expect(state.campaign?.id).toBe(canary.id)
+  })
+
   it('returns an owner-safe qualified campaign state and counts only live slots', async () => {
     const activeInvite = {
       id: 'invite-1',
