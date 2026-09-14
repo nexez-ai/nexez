@@ -190,7 +190,7 @@ export function SellerGrowthInvites({ initialState }: { initialState: SellerGrow
             <div>
               <div className="flex items-center gap-2 text-sm text-[var(--signal)]">
                 <Gift className="size-4" />
-                Six months of Launch
+                180 days of Launch
               </div>
               <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">
                 {state.grant
@@ -198,7 +198,7 @@ export function SellerGrowthInvites({ initialState }: { initialState: SellerGrow
                   : pendingVerification
                     ? 'Published, Launch pending verification'
                     : state.qualification.campaignAccess
-                      ? 'Unlock six months of Launch'
+                      ? 'Unlock 180 days of Launch'
                       : 'Launch access needs an invitation'}
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">

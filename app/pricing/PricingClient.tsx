@@ -36,7 +36,7 @@ export default function PricingClient() {
           <div className="eyebrow justify-center">Plans &amp; pricing</div>
           <h1 className="display mt-4">Simple, transparent pricing.</h1>
           <p className="lede mx-auto mt-4 text-center">
-            Start on Free with no time limit. Eligible verified businesses can receive six complimentary months of Launch access while the campaign is available.
+            Start on Free with no time limit. Eligible verified businesses with a live listing can receive 180 complimentary days of Launch access while the campaign is available.
           </p>
           <p className="mx-auto mt-3 max-w-3xl text-sm text-[#9CA3AF]">
             Every plan includes discovery and commerce when your business is operationally ready. Upgrade for intelligence, automation, collaboration, capacity, support, and lower fees.

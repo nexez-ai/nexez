@@ -5,6 +5,10 @@ import {
   InfoRows, Lead, NextSteps, Notice, PrimaryButton, Quote, StatusBadge, Steps,
 } from './BrandedEmail'
 import { BRAND, styles, type EmailTone } from './theme'
+import {
+  GROWTH_ACCESS_STARTS, GROWTH_EXPIRY_TERMS, GROWTH_NO_CARD_TERMS,
+  GROWTH_QUALIFICATION_TERMS, PUBLIC_LAUNCH_DURATION,
+} from '../lib/growth-offer-copy'
 
 type Rows = Array<[string, string | null | undefined]>
 
@@ -245,7 +249,7 @@ export function SellerGrowthInviteEmail(p: {
 }) {
   return (
     <BrandedEmail
-      preview={`${p.inviterBusinessName} reserved Nexez Launch access for your business.`}
+      preview={`${p.inviterBusinessName} invited your business to Nexez Launch.`}
       category="Account update"
     >
       <EmailEyebrow>Launch access</EmailEyebrow>
@@ -253,18 +257,19 @@ export function SellerGrowthInviteEmail(p: {
           already the "Automatic charge: None" row below. */}
       <EmailHeading>Your Nexez Launch invitation is ready</EmailHeading>
       <Lead>
-        <strong>{p.inviterBusinessName}</strong> reserved {p.durationLabel} of Nexez Launch
-        for your business at no cost. Your access starts when your first listing goes live.
+        <strong>{p.inviterBusinessName}</strong> invited your business to {p.durationLabel} of Nexez Launch
+        at no subscription cost.
       </Lead>
+      <Caption>{GROWTH_QUALIFICATION_TERMS}</Caption>
       <InfoRows rows={[
         ['Invitation', `Nexez Launch for ${p.durationLabel}`],
         ['Cost', '$0, with no card required'],
-        ['Access starts', 'When your first listing goes live'],
+        ['Access starts', GROWTH_ACCESS_STARTS],
         ['Accept with', p.inviteeEmail],
       ]} />
       <PrimaryButton href={p.claimUrl}>Accept invitation</PrimaryButton>
       <Notice>This invitation creates a separate business account. It never shares access with {p.inviterBusinessName}.</Notice>
-      <FinePrint>When the free period ends, your account moves to Free. There is no automatic charge.</FinePrint>
+      <FinePrint>{GROWTH_EXPIRY_TERMS}</FinePrint>
     </BrandedEmail>
   )
 }
@@ -288,7 +293,7 @@ export function FoundingCohortEmail(p: {
 }) {
   return (
     <BrandedEmail
-      preview={`Six months of Nexez Launch, selected for your clarity, with no card required.`}
+      preview={`${PUBLIC_LAUNCH_DURATION} of Nexez Launch for eligible businesses, with no card required.`}
       category="Founding cohort"
     >
       <EmailEyebrow>Texas founding cohort</EmailEyebrow>
@@ -315,9 +320,9 @@ export function FoundingCohortEmail(p: {
         understand you, and take the next step.
       </Lead>
       <InfoRows rows={[
-        ['Invitation', 'Six months of Nexez Launch'],
+        ['Invitation', `${PUBLIC_LAUNCH_DURATION} of Nexez Launch`],
         ['Cost', '$0, with no card required'],
-        ['Access starts', 'When your first listing goes live'],
+        ['Access starts', GROWTH_ACCESS_STARTS],
         ['Your role', 'Give us honest feedback as you use it'],
       ]} />
       <PrimaryButton href={p.claimUrl}>Accept your invitation</PrimaryButton>
@@ -329,6 +334,7 @@ export function FoundingCohortEmail(p: {
         Built in Texas. Starting with Texas.<br />
         {p.senderName}, {p.senderTitle}
       </FinePrint>
+      <FinePrint>{GROWTH_QUALIFICATION_TERMS} {GROWTH_EXPIRY_TERMS}</FinePrint>
       <FinePrint>
         Not interested? <Link href={p.unsubscribeUrl} className="nx-link" style={styles.link}>
           Unsubscribe
@@ -349,11 +355,11 @@ export function PromotionExpiryEmail(p: {
       <StatusBadge tone="caution">Changes {timing}</StatusBadge>
       <EmailHeading>Your Launch plan changes {timing}</EmailHeading>
       <Lead>
-        On {p.endsOn}, <strong>{p.businessName}</strong> moves to the Free plan. Your business
-        stays live on Nexez, and no automatic charge occurs.
+        On {p.endsOn}, promotional Launch access for <strong>{p.businessName}</strong> ends.
+        {' '}{GROWTH_EXPIRY_TERMS}
       </Lead>
       <InfoRows rows={[
-        ['Plan after this', 'Free'],
+        ['Plan after this', 'Free, unless you choose a paid plan'],
         ['Listing kept live', p.fallbackListingName || 'Your oldest published listing'],
         ['Automatic charge', 'None'],
       ]} />
@@ -507,11 +513,10 @@ export function StaleListingEmail(p: {
  */
 
 /**
- * Fires once, when the database mints the grant. That happens on the write that
- * publishes the owner's first listing, so this doubles as the "you are live"
- * email and must name the listing that triggered it.
+ * Fires once, when the database mints the grant after all qualification gates
+ * pass. Publication or a later verification can complete the final gate.
  *
- * `endsOn` is already formatted for display by the caller; the six-month figure
+ * `endsOn` is already formatted for display by the caller; the duration
  * is campaign configuration (`grant_duration_days`), never hardcoded here.
  */
 export function LaunchAccessStartedEmail(p: {
@@ -530,8 +535,8 @@ export function LaunchAccessStartedEmail(p: {
       <StatusBadge tone="positive">Launch active</StatusBadge>
       <EmailHeading>Your listing is live. Your free access is active.</EmailHeading>
       <Lead>
-        Publishing <strong>{p.listingName}</strong> activated your free Nexez Launch access.
-        Nothing was charged, and no card is on file.
+        Your business completed the qualification checks and your complimentary Nexez Launch access is active.
+        {' '}<strong>{p.listingName}</strong> is live. {GROWTH_NO_CARD_TERMS}
       </Lead>
       <InfoRows rows={[
         ['Business', p.businessName],
@@ -541,7 +546,7 @@ export function LaunchAccessStartedEmail(p: {
       ]} />
       <PrimaryButton href={p.dashboardUrl}>Open your dashboard</PrimaryButton>
       <Notice>
-        On {p.endsOn}, your account moves to Free automatically. No charge occurs.
+        Your promotional access ends on {p.endsOn}. {GROWTH_EXPIRY_TERMS}
       </Notice>
       <FinePrint>
         We will remind you before the plan changes.
@@ -565,25 +570,25 @@ export function PublishNudgeEmail(p: {
 }) {
   return (
     <BrandedEmail
-      preview="Your Launch spot is reserved. The clock starts when you publish."
+      preview="Your Launch access has not started. Complete the qualification checks."
       category="Account update"
     >
       <EmailEyebrow>Launch access</EmailEyebrow>
       <StatusBadge tone="caution">Not started yet</StatusBadge>
-      <EmailHeading>Your Launch spot is reserved</EmailHeading>
+      <EmailHeading>Your Launch qualification is not finished</EmailHeading>
       <Lead>
-        Your free {p.durationLabel} for <strong>{p.businessName}</strong> remains fully unused.
-        The clock starts only when your first listing goes live.
+        Your complimentary {p.durationLabel} for <strong>{p.businessName}</strong> has not started.
+        {' '}{GROWTH_QUALIFICATION_TERMS}
       </Lead>
       <InfoRows rows={[
         ['Access', `Nexez Launch, ${p.durationLabel}`],
         ['Time used', 'None'],
-        ['Starts when', 'Your first listing is published'],
-        ['Reserved until', p.reservedUntil || 'The group fills'],
+        ['Starts when', GROWTH_ACCESS_STARTS],
+        ['Enrollment closes', p.reservedUntil || 'Subject to campaign availability'],
       ]} />
       <PrimaryButton href={p.publishUrl}>Publish your first listing</PrimaryButton>
       <Notice>
-        Confirm the details, then publish when the offer is accurate. Your access begins immediately.
+        Review your listing details and complete any remaining verification steps in your dashboard.
       </Notice>
       <FinePrint>Need help finishing? Reply to this email and a person will help.</FinePrint>
     </BrandedEmail>
@@ -653,8 +658,8 @@ export function ScanResultsEmail(p: {
       </Caption>
       <PrimaryButton href={p.claimUrl}>Close the gaps with Nexez</PrimaryButton>
       <Notice>
-        Your six months of Nexez Launch costs $0 and requires no card. Access starts when
-        your listing goes live.
+        Eligible businesses can receive {PUBLIC_LAUNCH_DURATION} of Nexez Launch at no subscription cost.
+        {' '}{GROWTH_NO_CARD_TERMS} {GROWTH_QUALIFICATION_TERMS} {GROWTH_EXPIRY_TERMS}
       </Notice>
       <FinePrint>
         We ran this scan because you asked for it. We do not keep a copy of your site.{' '}

@@ -194,6 +194,7 @@ describe('PATCH /api/admin/growth-campaign', () => {
       claimUrl: 'https://app.nexez.ai/invite/secure_cohort_token_secure_cohort_token_123',
       member: { email: 'owner@acme.test', status: 'pending' },
     })
+    expect(state.releaseWave).not.toHaveBeenCalled()
   })
 
   it('stages a verified batch without invoking a release', async () => {

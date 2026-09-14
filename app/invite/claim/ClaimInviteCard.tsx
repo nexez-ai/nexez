@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ArrowRight, BadgeCheck, Loader2, LogOut, Mail, ShieldCheck } from 'lucide-react'
 import { createClient } from '../../../utils/supabase/client'
+import { GROWTH_EXPIRY_TERMS, GROWTH_NO_CARD_TERMS, GROWTH_QUALIFICATION_TERMS } from '../../../lib/growth-offer-copy'
 
 export type ClaimInviteMode =
   | 'invalid'
@@ -80,14 +81,14 @@ export function ClaimInviteCard({
       ? 'This Launch pass is unavailable'
       : mode === 'already_claimed'
         ? 'Your pass is claimed'
-        : 'Six complimentary months of Launch'
+        : '180 days of complimentary Launch'
   const detail = mode === 'expired'
     ? 'Ask the sender to renew the invitation from their Nexez dashboard.'
     : invalid
       ? 'The link may be invalid, revoked, or already used.'
       : mode === 'already_claimed'
         ? 'Finish publishing and verifying your business to activate any remaining qualification step.'
-        : `${inviterBusinessName} invited your business to use Nexez Launch for six months at no subscription cost.`
+        : `${inviterBusinessName} invited your business to use Nexez Launch for 180 days at no subscription cost.`
 
   return (
     <section className="w-full max-w-xl rounded-lg border border-border bg-[var(--ov-04)] p-6 shadow-2xl shadow-black/25 md:p-8">
@@ -174,7 +175,7 @@ export function ClaimInviteCard({
       )}
 
       <p className="mt-6 text-xs leading-5 text-muted-foreground">
-        No card is required. When complimentary access ends, your account returns to Free unless you choose a paid plan.
+        {GROWTH_NO_CARD_TERMS} {GROWTH_QUALIFICATION_TERMS} {GROWTH_EXPIRY_TERMS}
       </p>
     </section>
   )

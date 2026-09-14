@@ -2,6 +2,11 @@ import 'server-only'
 import type { ReactElement } from 'react'
 import { render } from '@react-email/render'
 import { captureError } from './observability'
+import { describeGrantDuration } from './growth-duration'
+import {
+  GROWTH_ACCESS_STARTS, GROWTH_EXPIRY_TERMS, GROWTH_NO_CARD_TERMS,
+  GROWTH_QUALIFICATION_TERMS, PUBLIC_LAUNCH_DURATION,
+} from './growth-offer-copy'
 import {
   BookingEmail,
   NegotiationEmail,
@@ -552,19 +557,20 @@ export async function buildSellerGrowthInviteEmail(opts: {
   claimUrl: string
 }): Promise<Built> {
   const { inviterBusinessName, inviteeEmail, durationDays, claimUrl } = opts
-  const durationLabel = durationDays === 180 ? 'six months' : `${durationDays} days`
+  const durationLabel = describeGrantDuration(durationDays)
   const subject = `Your Nexez Launch invitation from ${inviterBusinessName}`
   const text = [
-    `${inviterBusinessName} reserved ${durationLabel} of Nexez Launch for your business at no cost. Your access starts when your first listing goes live.`,
+    `${inviterBusinessName} invited your business to ${durationLabel} of Nexez Launch at no subscription cost.`,
+    GROWTH_QUALIFICATION_TERMS,
     '',
     `Invitation: Nexez Launch for ${durationLabel}`,
     'Cost: $0, with no card required',
-    'Access starts: When your first listing goes live',
+    `Access starts: ${GROWTH_ACCESS_STARTS}`,
     '',
     `Accept the invitation with ${inviteeEmail}: ${claimUrl}`,
     '',
     `This invitation creates a separate business account. It never shares access with ${inviterBusinessName}.`,
-    'When the free period ends, your account moves to Free. There is no automatic charge.',
+    GROWTH_EXPIRY_TERMS,
   ].join('\n')
   const html = await renderHtml(
     <SellerGrowthInviteEmail
@@ -596,7 +602,7 @@ export async function buildPromotionExpiryEmail(opts: {
   }).format(new Date(endsAt))
   const subject = `Your free Nexez Launch access ends ${timing}`
   const text = [
-    `On ${endsOn}, ${businessName} moves to the Free plan. Your business stays live on Nexez, and no automatic charge occurs.`,
+    `On ${endsOn}, promotional Launch access for ${businessName} ends. ${GROWTH_EXPIRY_TERMS}`,
     '',
     `Listing kept published: ${fallbackListingName || 'your oldest published listing'}`,
     'We keep every draft and extra listing. Publish them again whenever your plan allows.',
@@ -711,7 +717,7 @@ const asCalendarDay = (iso: string) =>
   new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     .format(new Date(iso))
 
-// ── Seller growth: the promotional grant just started (first listing went live) ──
+// ── Seller growth: the promotional grant started after all qualification gates ──
 export async function buildLaunchAccessStartedEmail(opts: {
   businessName: string
   listingName: string
@@ -729,7 +735,7 @@ export async function buildLaunchAccessStartedEmail(opts: {
     ['Runs until', endsOn],
   ]
   const text = textBody(
-    `Publishing "${listingName}" activated your free Nexez Launch access. Nothing was charged, and no card is on file.\n\nOn ${endsOn}, your account moves to Free automatically. No charge occurs. We will remind you before the plan changes.`,
+    `Your business completed the qualification checks and your complimentary Nexez Launch access is active. "${listingName}" is live. ${GROWTH_NO_CARD_TERMS}\n\nYour promotional access ends on ${endsOn}. ${GROWTH_EXPIRY_TERMS} We will remind you before the plan changes.`,
     rows,
     'Open your dashboard',
     dashboardUrl,
@@ -756,15 +762,15 @@ export async function buildPublishNudgeEmail(opts: {
 }): Promise<Built> {
   const { businessName, durationLabel, reservedUntil = null, publishUrl } = opts
   const heldUntil = reservedUntil ? asCalendarDay(reservedUntil) : null
-  const subject = 'Your Nexez Launch spot is still reserved'
+  const subject = 'Your Nexez Launch qualification is not finished'
   const rows: Row[] = [
     ['Access', `Nexez Launch, ${durationLabel}`],
     ['Time used', 'None'],
-    ['Starts when', 'Your first listing is published'],
-    ['Reserved until', heldUntil || 'The group fills'],
+    ['Starts when', GROWTH_ACCESS_STARTS],
+    ['Enrollment closes', heldUntil || 'Subject to campaign availability'],
   ]
   const text = textBody(
-    `Your free ${durationLabel} for ${businessName} remains fully unused. The clock starts only when your first listing goes live.\n\nConfirm the details, then publish when the offer is accurate. Your access begins immediately.`,
+    `Your complimentary ${durationLabel} for ${businessName} has not started. ${GROWTH_QUALIFICATION_TERMS}\n\nReview your listing details and complete any remaining verification steps in your dashboard.`,
     rows,
     'Publish your first listing',
     publishUrl,
@@ -799,7 +805,7 @@ export async function buildScanResultsEmail(opts: {
     findings,
     'Close the gaps with Nexez',
     claimUrl,
-  ) + `\n\nYour six months of Nexez Launch costs $0 and requires no card. Access starts when your listing goes live.\n\nUnsubscribe: ${unsubscribeUrl}`
+  ) + `\n\nEligible businesses can receive ${PUBLIC_LAUNCH_DURATION} of Nexez Launch at no subscription cost. ${GROWTH_NO_CARD_TERMS} ${GROWTH_QUALIFICATION_TERMS} ${GROWTH_EXPIRY_TERMS}\n\nUnsubscribe: ${unsubscribeUrl}`
   const html = await renderHtml(
     <ScanResultsEmail
       domain={domain}

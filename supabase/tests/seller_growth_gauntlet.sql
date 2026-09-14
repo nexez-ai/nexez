@@ -149,7 +149,7 @@ begin
     updated_at
   )
   values
-    ('00000000-0000-0000-0000-000000000000', v_owner, 'authenticated', 'authenticated', v_owner_email, '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now()),
+    ('00000000-0000-0000-0000-000000000000', v_owner, 'authenticated', 'authenticated', v_owner_email, '', null, '{"provider":"email","providers":["email"]}', '{}', now(), now()),
     ('00000000-0000-0000-0000-000000000000', v_duplicate, 'authenticated', 'authenticated', v_duplicate_email, '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now()),
     ('00000000-0000-0000-0000-000000000000', v_paid, 'authenticated', 'authenticated', v_paid_email, '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now()),
     ('00000000-0000-0000-0000-000000000000', v_referral, 'authenticated', 'authenticated', v_referral_email, '', now(), '{"provider":"email","providers":["email"]}', '{}', now() - interval '1 day', now()),
@@ -173,8 +173,24 @@ begin
     'growth-owner-' || v_suffix,
     true,
     v_shared_website,
-    now()
+    null
   );
+
+  insert into growth_gauntlet_results (scenario, passed, detail)
+  select
+    'publication alone does not start the promotional clock',
+    not exists (select 1 from public.promotional_plan_grants where owner_id = v_owner),
+    'A live listing without verified email and identity must remain on Free.';
+
+  update public.pages set website_verified_at = now() where id = v_owner_page_1;
+  insert into growth_gauntlet_results (scenario, passed, detail)
+  select
+    'verified business still waits for email confirmation',
+    not exists (select 1 from public.promotional_plan_grants where owner_id = v_owner),
+    'Business verification cannot bypass the email verification gate.';
+
+  update auth.users set email_confirmed_at = now() where id = v_owner;
+  perform public.refresh_seller_growth_grant(v_owner);
 
   select g.id
   into v_owner_grant
@@ -183,13 +199,15 @@ begin
     and g.campaign_id = v_campaign
     and g.source = 'welcome'
     and g.status = 'active'
-    and g.ends_at between now() + interval '179 days' and now() + interval '181 days';
+    -- Issuance uses statement time, not the earlier BEGIN transaction time.
+    and g.starts_at = statement_timestamp()
+    and g.ends_at - g.starts_at = interval '180 days';
 
   insert into growth_gauntlet_results (scenario, passed, detail)
   values (
     'verified new seller receives Launch despite newer exhausted canary',
     v_owner_grant is not null and public.owner_plan_rank(v_owner) = 1,
-    'Expected one 180-day welcome grant and Launch rank.'
+    'Expected exactly 180 days beginning at qualification, not six calendar months.'
   );
 
   -- Give the internal campaign spare capacity for the remaining referral,
@@ -627,7 +645,11 @@ begin
         from public.pages
         where id = v_owner_page_2
       ) is true
-      and public.owner_plan_rank(v_owner) = 0,
+      and public.owner_plan_rank(v_owner) = 0
+      and not exists (
+        select 1 from public.billing_subscriptions
+        where owner_id = v_owner and plan_id <> 'free'
+      ),
     'The selected fallback remains public while excess listings become drafts.'
   ;
 

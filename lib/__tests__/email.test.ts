@@ -114,7 +114,7 @@ describe('buildMoneyEventEmail', () => {
 })
 
 describe('buildSellerGrowthInviteEmail', () => {
-  it('presents a 180-day campaign as six months across text and HTML', async () => {
+  it('presents the exact 180-day campaign duration and qualification in both parts', async () => {
     const mail = await buildSellerGrowthInviteEmail({
       inviterBusinessName: 'Apex Advisory',
       inviteeEmail: 'owner@example.com',
@@ -122,9 +122,13 @@ describe('buildSellerGrowthInviteEmail', () => {
       claimUrl: 'https://app.nexez.ai/invite/claim/token',
     })
 
-    expect(mail.text).toContain('reserved six months of Nexez Launch')
-    expect(mail.html.replaceAll('<!-- -->', '')).toContain('reserved six months of Nexez Launch')
-    expect(`${mail.subject}\n${mail.text}\n${mail.html}`).not.toMatch(/180 days|Launch year|promotional year/i)
+    for (const part of [mail.text, mail.html.replaceAll('<!-- -->', '')]) {
+      expect(part).toContain('180 days of Nexez Launch')
+      expect(part).toContain('email and business identity are verified')
+      expect(part).toContain('all qualification checks pass')
+      expect(part).toContain('unless you choose a paid plan')
+    }
+    expect(`${mail.subject}\n${mail.text}\n${mail.html}`).not.toMatch(/six months|Launch year|promotional year/i)
   })
 })
 

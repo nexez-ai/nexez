@@ -4,16 +4,8 @@
  * export HTTP handlers and supported route configuration.
  */
 export function describeGrantDuration(days: number): string {
-  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
-  const spell = (value: number) => (value < words.length ? words[value] : String(value))
-  if (!Number.isFinite(days) || days <= 0) return 'your complimentary period'
-  if (days % 365 === 0) {
-    const years = days / 365
-    return years === 1 ? 'one year' : `${spell(years)} years`
-  }
-  if (days % 30 === 0) {
-    const months = days / 30
-    return months === 1 ? 'one month' : `${spell(months)} months`
-  }
+  // A fixed day count is not a calendar month or year. Keep the stored duration
+  // exact, including across month lengths, leap years, and daylight saving time.
+  if (!Number.isInteger(days) || days <= 0) return 'your complimentary period'
   return days === 1 ? 'one day' : `${days} days`
 }
