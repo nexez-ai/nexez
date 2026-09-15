@@ -85,8 +85,10 @@ import { whenAiAgentsCallYourBusiness } from './learn-articles/when-ai-agents-ca
 import { reviewsRatingsAndAiAgents } from './learn-articles/reviews-ratings-and-ai-agents'
 import { pricingForAiAgents } from './learn-articles/pricing-for-ai-agents'
 import { howAgentsIdentifyYourBusiness } from './learn-articles/how-agents-identify-your-business'
+import { howToVerifyAiAgents } from './learn-articles/how-to-verify-ai-agents'
 
 export const learnArticles: LearnArticle[] = [
+  howToVerifyAiAgents,
   howAgentsIdentifyYourBusiness,
   pricingForAiAgents,
   reviewsRatingsAndAiAgents,
