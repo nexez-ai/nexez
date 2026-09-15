@@ -9,7 +9,7 @@ export const whichAiCrawlersToAllow: LearnArticle = {
   dek: 'The publisher version of this question is about compensation. The small-business version is much simpler, and the risk runs the other way: almost every site that is invisible to AI agents got that way without ever deciding to be. Here is the decision, bot by bot, plus the three blocks people set without realizing.',
   category: 'Agent readiness',
   publishedAt: '2026-08-21',
-  updatedAt: '2026-08-21',
+  updatedAt: '2026-09-15',
   readMinutes: 11,
   blocks: [
     {
@@ -186,7 +186,7 @@ Sitemap: https://yourdomain.com/sitemap.xml`,
     },
     {
       type: 'p',
-      text: 'Where this is heading is cryptographic rather than textual. Cloudflare spent 2026 moving from static bot lists toward continuous evaluation of how an agent actually behaves, and signed-request schemes are being standardized so an agent can prove who it is instead of asserting it. Nothing to implement yet. Worth knowing that the string-matching era is ending.',
+      text: 'Where this is heading is cryptographic rather than textual, and it arrived faster than expected. Signed requests now carry proof of origin that no string can forge, OpenAI publishes no IP ranges for its agent at all, and the verification work has moved to the edge. If you are writing access rules today, read [how to verify an AI agent](/learn/how-to-verify-ai-agents) before you invest further in matching strings.',
     },
     { type: 'h2', text: 'Then measure it, because the answer changes' },
     {
