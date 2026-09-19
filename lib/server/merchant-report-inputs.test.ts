@@ -10,7 +10,7 @@ const month = '2026-08'
 const coverage = { state: 'complete', from: '2026-08-01T00:00:00+00:00', toExclusive: '2026-09-01T00:00:00+00:00' }
 function fixture() {
   return {
-    ownerId, listingId, month, observedAt: '2026-09-11T04:00:00+00:00',
+    ownerId, listingId, month, observedAt: '2026-09-11T04:00:00+00:00', websiteSnapshot: null,
     listing: { state: 'available', name: 'Merchant', description: 'Useful description', isPublished: false,
       standardVersion: '2026.1', readinessSignals: [true, true, true, false, false, false, false, false, false, false, false] },
     traffic: { state: 'available', evidenceId: '9c000000-0000-4000-8000-000000000001', evidenceSha256: `sha256:${'a'.repeat(64)}`, coverage,
@@ -34,7 +34,7 @@ beforeEach(() => {
 describe('owner report input boundary', () => {
   it('reads one session RPC without passing an owner, org or coverage claim', async () => {
     const report = await read()
-    expect(rpc).toHaveBeenCalledExactlyOnceWith('read_merchant_report_inputs', { p_listing_id: listingId, p_month: '2026-08-01' })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('read_merchant_report_with_website', { p_listing_id: listingId, p_month: '2026-08-01' })
     expect(abortSignal).toHaveBeenCalledWith(expect.any(AbortSignal))
     expect(report.dataBasis).toBe('merchant_sources')
     expect(report.traffic).toMatchObject({ state: 'available', value: raw.traffic.value })

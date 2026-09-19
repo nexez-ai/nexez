@@ -25,6 +25,23 @@ beforeEach(() => {
 })
 
 describe('shared scanner network boundary', () => {
+  it.each(['https://www.example.com/', 'http://example.com/', 'https://other.com/agent.json'])('fences a merchant collection to its approved origin: %s', async url => {
+    const context = createScanNetworkContext('token', null, undefined, 'https://example.com')
+    await expect(context.options.beforeRequest!(url)).rejects.toMatchObject({ code: 'unsafe_target' })
+    expect(rpc).not.toHaveBeenCalled()
+    expect(safeFetch).not.toHaveBeenCalled()
+    await context.close()
+  })
+  it('applies the merchant origin fence to robots redirects before transport', async () => {
+    safeFetch.mockImplementation(async (_url, _init, options) => {
+      await options.beforeRequest('https://www.example.com/robots.txt')
+      throw new Error('Robots redirect should have been denied')
+    })
+    const context = createScanNetworkContext('token', null, undefined, 'https://example.com')
+    await expect(context.options.beforeRequest!('https://example.com/')).rejects.toMatchObject({ code: 'unsafe_target' })
+    expect(() => context.assertFinished()).toThrow(ScanNetworkError)
+    await context.close()
+  })
   it('checks the durable limiter before fetching robots or a page, and caches one permit per registrable domain', async () => {
     const context = createScanNetworkContext('token')
     try {
