@@ -87,8 +87,10 @@ import { pricingForAiAgents } from './learn-articles/pricing-for-ai-agents'
 import { howAgentsIdentifyYourBusiness } from './learn-articles/how-agents-identify-your-business'
 import { howToVerifyAiAgents } from './learn-articles/how-to-verify-ai-agents'
 import { returnPoliciesForAiAgents } from './learn-articles/return-policies-for-ai-agents'
+import { whenAiGetsYourBusinessWrong } from './learn-articles/when-ai-gets-your-business-wrong'
 
 export const learnArticles: LearnArticle[] = [
+  whenAiGetsYourBusinessWrong,
   returnPoliciesForAiAgents,
   howToVerifyAiAgents,
   howAgentsIdentifyYourBusiness,
