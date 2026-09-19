@@ -9,7 +9,7 @@ export const measureAiAgentTraffic: LearnArticle = {
   dek: 'Google Analytics reports zero AI crawler visits no matter how many you get, because crawlers do not run JavaScript. That is one of three separate blind spots, each needing a different instrument. Here is the full measurement stack, with the user agents, the queries, and the verification step most guides skip.',
   category: 'Agent readiness',
   publishedAt: '2026-08-16',
-  updatedAt: '2026-08-16',
+  updatedAt: '2026-09-19',
   readMinutes: 11,
   blocks: [
     {
@@ -72,7 +72,7 @@ grep -iE 'GPTBot|ClaudeBot|PerplexityBot' access.log | awk '{print $9}' | sort |
         ['GPTBot', 'OpenAI', 'Model training crawl', 'Excluded from future training data'],
         ['OAI-SearchBot', 'OpenAI', 'ChatGPT search index', 'Not eligible for ChatGPT search citations'],
         ['ChatGPT-User', 'OpenAI', 'Fetches a page when a user asks about it', 'ChatGPT cannot read your page on request'],
-        ['ClaudeBot', 'Anthropic', 'Primary crawl', 'Excluded from Claude\u2019s crawled corpus'],
+        ['ClaudeBot', 'Anthropic', 'Primary crawl', 'Excluded from Claude’s crawled corpus'],
         ['Claude-SearchBot / Claude-User', 'Anthropic', 'Retrieval and user-triggered fetch', 'Claude cannot cite or fetch you live'],
         ['PerplexityBot / Perplexity-User', 'Perplexity', 'Index build and real-time retrieval', 'Removed from Perplexity answers'],
         ['Google-Extended', 'Google', 'Controls Gemini and Vertex AI training', 'Excluded from Gemini training, Search ranking unaffected'],
@@ -95,7 +95,7 @@ grep -iE 'GPTBot|ClaudeBot|PerplexityBot' access.log | awk '{print $9}' | sort |
       type: 'callout',
       tone: 'amber',
       title: 'User agents can be forged',
-      text: 'Anyone can send a request claiming to be GPTBot, and scrapers do exactly that to inherit whatever access you grant real crawlers. Before you trust a number or write a firewall rule around it, verify: each major provider publishes IP ranges for its crawlers, and reverse DNS lookups on the source IP should resolve to the provider\u2019s domain and forward-resolve back to the same IP. Unverified user-agent strings are a signal, not proof. Note too that some crawlers, including Bytespider and certain Perplexity fetchers, have been documented ignoring robots.txt, so robots directives alone are not enforcement.',
+      text: 'Anyone can send a request claiming to be GPTBot, and scrapers do exactly that to inherit whatever access you grant real crawlers. Before you trust a number or write a firewall rule around it, verify: each major provider publishes IP ranges for its crawlers, and reverse DNS lookups on the source IP should resolve to the provider’s domain and forward-resolve back to the same IP. Unverified user-agent strings are a signal, not proof. Note too that some crawlers, including Bytespider and certain Perplexity fetchers, have been documented ignoring robots.txt, so robots directives alone are not enforcement.',
     },
     { type: 'h2', text: 'Layer two: AI referral traffic' },
     {
@@ -145,6 +145,15 @@ function aiChannel(referrer) {
       href: '/scan',
       label: 'Scan your site free',
     },
+    { type: 'h2', text: 'What Google now reports directly' },
+    {
+      type: 'p',
+      text: 'The three layers above are all instruments you install yourself, which was for a long time the only option, because the platforms reported nothing. That changed in September 2026, when Google added AI Performance Insights to Merchant Center: a share-of-voice comparison against competitors across AI Mode and AI Overviews, available at launch in the United States, Canada, Australia, New Zealand and India.',
+    },
+    {
+      type: 'p',
+      text: 'Treat it as a fourth instrument rather than a replacement for the other three, because it answers a different question. Your logs tell you who fetched your pages. Your referral segment tells you who arrived. Share of voice tells you how often you were the answer at all, including every time you were mentioned and nobody clicked, which is the measurement gap this whole guide exists to work around. It is also the only one of the four you cannot audit, since the number is Google reporting on Google.',
+    },
     { type: 'h2', text: 'What to do with the numbers' },
     {
       type: 'p',
@@ -185,12 +194,12 @@ function aiChannel(referrer) {
     {
       question: 'What is the difference between GPTBot and ChatGPT-User?',
       answer:
-        'GPTBot is OpenAI\u2019s training crawler, collecting content that may inform future models. ChatGPT-User fetches a specific page on demand when someone inside ChatGPT asks about it, and OAI-SearchBot powers ChatGPT\u2019s search index and citations. The distinction matters: blocking GPTBot is a content-rights decision with no direct effect on today\u2019s citations, while blocking the other two removes you from ChatGPT answers about your business.',
+        'GPTBot is OpenAI’s training crawler, collecting content that may inform future models. ChatGPT-User fetches a specific page on demand when someone inside ChatGPT asks about it, and OAI-SearchBot powers ChatGPT’s search index and citations. The distinction matters: blocking GPTBot is a content-rights decision with no direct effect on today’s citations, while blocking the other two removes you from ChatGPT answers about your business.',
     },
     {
       question: 'Can AI crawler traffic be faked?',
       answer:
-        'Yes. User-agent strings are trivially forged, and scrapers impersonate known crawlers to inherit whatever access those crawlers are granted. Verify before trusting the data or building rules on it: the major providers publish IP ranges for their crawlers, and a reverse DNS lookup on the source IP should resolve to the provider\u2019s domain and forward-resolve back to the same address. Some crawlers also ignore robots.txt entirely, so enforcement belongs at the server or WAF level.',
+        'Yes. User-agent strings are trivially forged, and scrapers impersonate known crawlers to inherit whatever access those crawlers are granted. Verify before trusting the data or building rules on it: the major providers publish IP ranges for their crawlers, and a reverse DNS lookup on the source IP should resolve to the provider’s domain and forward-resolve back to the same address. Some crawlers also ignore robots.txt entirely, so enforcement belongs at the server or WAF level.',
     },
     {
       question: 'How do I track sales that AI agents complete?',
