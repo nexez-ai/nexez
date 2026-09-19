@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { appUrl } from '../../../../lib/site'
+import type { OfferItem } from '../../../../lib/agent-page'
+import { shopifyCatalogPreview } from '../../../../lib/shopify-catalog-preview'
 import { hasSecretCryptoKey } from '../../../../lib/server/secret-crypto'
 import { shopifyApiKey, shopifyConfigured, verifyShopifySessionToken } from '../../../../lib/server/shopify'
 import { ensureShopifySessionInstall, getShopifyInstallCredentialsByShop, issueShopifyLinkToken } from '../../../../lib/server/shopify-install'
@@ -44,15 +46,21 @@ export async function POST(request: Request) {
       return json({ error: 'This Shopify listing change is still finishing. Try again shortly.' }, 409)
     }
 
-    let listing: { id: string; name: string | null; slug: string } | null = null
+    type LinkedPage = {
+      id: string; name: string | null; slug: string; is_published: boolean
+      products: OfferItem[] | null; services: OfferItem[] | null
+    }
+    let linkedPage: LinkedPage | null = null
     if (install.page_id) {
       const { data } = await admin
         .from('pages')
-        .select('id, name, slug')
+        .select('id, name, slug, is_published, products, services')
         .eq('id', install.page_id)
-        .maybeSingle<{ id: string; name: string | null; slug: string }>()
-      listing = data ?? null
+        .eq('owner_id', install.owner_id)
+        .maybeSingle<LinkedPage>()
+      linkedPage = data ?? null
     }
+    const listing = linkedPage ? { id: linkedPage.id, name: linkedPage.name, slug: linkedPage.slug } : null
 
     const returnedPlanHandle = new URL(request.url).searchParams.get('plan_handle')
     let billing = {
@@ -106,6 +114,10 @@ export async function POST(request: Request) {
       shop: session.shop,
       state: listing ? 'linked' : 'link_required',
       listing,
+      catalog: linkedPage ? {
+        published: linkedPage.is_published === true,
+        products: shopifyCatalogPreview(linkedPage, session.shop, install.mapping_generation),
+      } : null,
       connectUrl,
       billing,
       channel,

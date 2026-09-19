@@ -82,13 +82,21 @@ describe('POST /api/shopify/session', () => {
 
   it('returns listing and sync state without minting a link token once connected', async () => {
     vi.mocked(createAdminClient).mockReturnValue(createSupabaseMock((ctx) => ({
-      data: ctx.table === 'pages' ? { id: 'page-1', name: 'Demo', slug: 'demo' } : null,
+      data: ctx.table === 'pages' ? {
+        id: 'page-1', name: 'Demo', slug: 'demo', is_published: true,
+        products: [{ name: 'Test mug', price: '$18.00', source: 'shopify',
+          url: 'https://demo.myshopify.com/products/mug',
+          metadata: { shopify_shop: 'demo.myshopify.com', shopify_mapping_generation: 2 },
+          rules: { minPrice: '$1.00' },
+        }],
+      } : null,
       error: null,
     })) as any)
     vi.mocked(ensureShopifySessionInstall).mockResolvedValue({
       shop_domain: 'demo.myshopify.com',
       owner_id: 'owner-1',
       page_id: 'page-1',
+      mapping_generation: 2,
       scope: 'read_products,write_app_proxy',
       uninstalled_at: null,
       last_synced_at: '2026-07-13T18:00:00Z',
@@ -117,6 +125,7 @@ describe('POST /api/shopify/session', () => {
     expect(body).toMatchObject({
       state: 'linked',
       listing: { id: 'page-1', name: 'Demo', slug: 'demo' },
+      catalog: { published: true, products: [{ name: 'Test mug', url: 'https://demo.myshopify.com/products/mug' }] },
       connectUrl: null,
       channel: { id: 'gid://shopify/Channel/1', handle: 'nexez-page1', accountId: 'page-1' },
       channelError: null,
@@ -129,6 +138,8 @@ describe('POST /api/shopify/session', () => {
       { pageId: 'page-1', accountName: 'Demo', startFullSync: false },
     )
     expect(issueShopifyLinkToken).not.toHaveBeenCalled()
+    expect(body.listing.products).toBeUndefined()
+    expect(JSON.stringify(body)).not.toContain('minPrice')
   })
 
   it('returns an attention state instead of trusting a stale stored channel id', async () => {
