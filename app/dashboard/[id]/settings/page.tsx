@@ -35,6 +35,7 @@ import { agentRuntimeUrl } from '../../../../lib/site'
 import { CredentialsManager } from '../../../../components/CredentialsManager'
 import { IntegrationsPanel } from '../../../../components/settings/IntegrationsPanel'
 import { WebsitePanel } from '../../../../components/settings/WebsitePanel'
+import { WebsiteBaselinePanel } from '../../../../components/settings/WebsiteBaselinePanel'
 import { BrandingPanel } from '../../../../components/settings/BrandingPanel'
 import { DomainConnectionPanel } from '../../../../components/settings/DomainConnectionPanel'
 import { AvailabilityPanel, stripAvailabilityMarker } from '../../../../components/settings/AvailabilityPanel'
@@ -1329,6 +1330,7 @@ export default function PageSettings({ params }: PageProps) {
                 </div>
               ) : null}
 
+              {pageRole === 'owner' ? <WebsiteBaselinePanel key={`${id}:${page?.website_url ?? ''}`} listingId={id} /> : null}
               {/* Phase 4: Enhanced Embed & Per-Offer Original Site Linking */}
               <div className="rounded-lg border border-white/10 bg-white/[0.02] p-5">
                 <div className="flex items-center gap-2 mb-3">

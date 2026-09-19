@@ -34,6 +34,11 @@ describe('scanner operations RPC boundary', () => {
     abort.mockResolvedValue({ data: 100, error: null })
     expect(await runOrganizationScanMaintenance()).toBe(100)
     expect(rpc).toHaveBeenCalledWith('cleanup_organization_scans', {})
+    expect(rpc).toHaveBeenCalledWith('cleanup_merchant_website_baselines', {})
+  })
+  it('surfaces website retention failure even when scanner cleanup passed', async () => {
+    abort.mockResolvedValueOnce({ data: 0, error: null }).mockResolvedValueOnce({ data: null, error: null })
+    await expect(runOrganizationScanMaintenance()).rejects.toThrow('Invalid website cleanup response')
   })
   it.each([null, -1, 101, 0.5, '0', { removed: 0 }])('rejects a malformed cleanup response: %j', async (data) => {
     abort.mockResolvedValue({ data, error: null })

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { loginWithPassword } from './auth'
 import { selectPlatformTheme } from './platform-theme'
+import { SCAN_CHECK_COPY } from '../lib/organization-scans'
 
 const email = process.env.E2E_EMAIL
 const password = process.env.E2E_PASSWORD
@@ -587,6 +588,64 @@ test.describe('page settings', () => {
 
     await failureRow.getByRole('button', { name: 'remove' }).click()
     await expect(failureRow).toHaveCount(0)
+  })
+
+  test('website baseline requires approval and distinguishes observations from failed collection', async ({ page }) => {
+    test.skip(!hasRealSettingsFixtureConfig(), 'requires the configured disposable E2E seller')
+    const listingId = await createDisposableListing()
+    const ownerId = fixtureOwnerId!
+    const associationId = 'cd000000-0000-4000-8000-000000000001'
+    const recordedAt = '2026-09-12T00:00:00.000Z'
+    const writes: Record<string, unknown>[] = []
+    let approved = false
+    let collections = 0
+    // Browser interaction uses synthetic API responses. No report pilot is
+    // enabled, no live website is fetched, and no merchant evidence is written.
+    await page.route('**/api/merchant/website-baseline**', async route => {
+      if (route.request().method() === 'POST') {
+        const input = route.request().postDataJSON() as Record<string, unknown>
+        writes.push(input)
+        if (input.action === 'approve') approved = true
+        if (input.action === 'collect') collections++
+        if (input.action === 'revoke') { approved = false; collections = 0 }
+      }
+      const association = approved ? { id: associationId, origin: 'https://example.com', method: 'merchant_approved', confirmedAt: recordedAt, expiresAt: '2026-10-01T00:00:00.000Z' } : null
+      const latest = collections ? {
+        id: 'dd000000-0000-4000-8000-000000000001', associationId, origin: 'https://example.com', associationMethod: 'merchant_approved',
+        scannerVersion: 'site-scan-2.1', rubricId: 'nexez.website-agent-readiness', provenance: 'merchant_website_snapshot',
+        evaluatedAt: recordedAt, createdAt: recordedAt, sourceVersion: `sha256:${'a'.repeat(64)}`,
+        result: collections === 1 ? { version: 2, score: 100, checks: Object.keys(SCAN_CHECK_COPY).map(id => ({ id, status: 'pass' })) } : null,
+        failure: collections === 1 ? null : 'robots_denied',
+      } : null
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ownerId, listingId, collectionEnabled: true,
+        suggestedOrigin: 'https://example.com', association, latest, attempt: null }) })
+    })
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    await loginToDashboard(page)
+    await page.goto(`/dashboard/${listingId}/settings`, { waitUntil: 'domcontentloaded' })
+    const panel = page.getByRole('region', { name: 'Website baseline', exact: true })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Approve website' })).toBeDisabled()
+    await panel.getByRole('checkbox').check()
+    await panel.getByRole('button', { name: 'Approve website' }).click()
+    await expect(panel.getByRole('button', { name: 'Collect baseline' })).toBeEnabled()
+    expect(writes).toHaveLength(1)
+    expect(writes[0]).toMatchObject({ action: 'approve', listingId, origin: 'https://example.com', attested: true, approvalVersion: 'merchant-website-v1' })
+    expect(writes[0]).not.toHaveProperty('ownerId')
+    await panel.getByRole('button', { name: 'Collect baseline' }).click()
+    await expect(panel.getByText('Website agent readiness: 100%')).toBeVisible()
+    await expect(panel.getByText(/does not establish a trend/)).toBeVisible()
+    if (process.env.NEXEZ_WEBSITE_SCREENSHOT) await panel.screenshot({ path: process.env.NEXEZ_WEBSITE_SCREENSHOT })
+    await page.setViewportSize({ width: 375, height: 812 })
+    expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await panel.getByRole('button', { name: 'Check website again' }).click()
+    await expect(panel.getByText(/failed collection is not a score of zero/)).toBeVisible()
+    await expect(panel.getByText('Website agent readiness: 100%')).toHaveCount(0)
+    await panel.getByRole('button', { name: 'Revoke website approval' }).click()
+    await expect(panel.getByRole('button', { name: 'Approve website' })).toBeDisabled()
+    await expect(panel.getByRole('heading', { name: 'Latest observation' })).toHaveCount(0)
+    expect(errors).toEqual([])
   })
 
   test('calendar availability API blocks anonymous requests', async ({ request }) => {
