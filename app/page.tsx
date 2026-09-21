@@ -25,6 +25,7 @@ import { ReadinessLab } from '../components/home/ReadinessLab'
 import { LiveAgentFeed } from '../components/home/LiveAgentFeed'
 import { ScrollProgress } from '../components/home/ScrollProgress'
 import { ShaderBackdrop } from '../components/home/ShaderBackdrop'
+import { ChatGPTLaunchAnnouncement } from '../components/marketing/ChatGPTLaunch'
 import { safeJsonScript } from '../lib/safe-json'
 
 // Marketing homepage: fully static (fast on nexez.ai). Product capability demos
@@ -247,6 +248,7 @@ export default function NexezHome() {
         dangerouslySetInnerHTML={{ __html: safeJsonScript(homeStructuredData) }}
       />
       <ScrollProgress />
+      <ChatGPTLaunchAnnouncement />
       {/* HERO + MARQUEE share one smoke field that bleeds across both */}
       <div className="relative overflow-hidden" style={{ background: 'var(--bg)' }}>
         <ShaderBackdrop />

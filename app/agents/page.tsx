@@ -11,6 +11,7 @@ import {
   Terminal,
 } from 'lucide-react'
 import { CodeCopyButton } from '../../components/CodeCopyButton'
+import { ChatGPTInstallCard } from '../../components/marketing/ChatGPTLaunch'
 import {
   NEXEZ_AGENT_EXAMPLES,
   NEXEZ_OPENCLAW_PLUGIN,
@@ -26,7 +27,7 @@ import { safeJsonScript } from '../../lib/safe-json'
 export const metadata: Metadata = {
   title: 'AI Agent Access and Distribution',
   description:
-    'The implementation guide for Nexez agent access: SDKs, OpenClaw tools, examples, APIs, artifacts, OpenAPI, MCP, ARD, validation, and approval.',
+    'Install Nexez Buyer in ChatGPT to find, compare, and check offers. Explore OpenClaw tools, SDKs, and APIs for custom agent workflows.',
   alternates: {
     canonical: marketingUrl('/agents'),
   },
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     url: marketingUrl('/agents'),
     title: 'AI Agent Access and Distribution',
     description:
-      'The implementation guide for Nexez agent access: SDKs, OpenClaw tools, examples, APIs, artifacts, OpenAPI, MCP, ARD, validation, and approval.',
+      'Install Nexez Buyer in ChatGPT to find, compare, and check offers. Explore OpenClaw tools, SDKs, and APIs for custom agent workflows.',
   },
 }
 
@@ -288,7 +289,7 @@ export default function AgentAccessPage() {
               name: 'Nexez',
               url: marketingUrl('/'),
             },
-            about: ['AI agent commerce', 'OpenClaw', 'llms.txt', 'MCP', 'OpenAPI', 'Agentic Resource Discovery'],
+            about: ['AI agent commerce', 'Nexez Buyer', 'ChatGPT', 'OpenClaw', 'llms.txt', 'MCP', 'OpenAPI', 'Agentic Resource Discovery'],
           }),
         }}
       />
@@ -307,16 +308,16 @@ export default function AgentAccessPage() {
               Give agents a clean path into <span className="nx-accent-text">Nexez.</span>
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
-              This is the implementation guide for agent distribution: install the OpenClaw tools or an SDK,
-              search Nexez supply, validate a handoff, obtain buyer approval, and act through published contracts.
+              Start with Nexez Buyer in ChatGPT to find, compare, and check offers without code.
+              Building your own agent? Explore OpenClaw tools, SDKs, and the published API contracts below.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#install" className="btn-primary h-11 px-5">
-                Install agent access
+              <a href="#chatgpt" className="btn-primary h-11 px-5">
+                Use Nexez Buyer
                 <ArrowRight className="size-4" />
               </a>
-              <a href="/docs#developer-distribution" className="btn-secondary h-11 px-5">
-                Platform documentation
+              <a href="#install" className="btn-secondary h-11 px-5">
+                Developer install options
               </a>
             </div>
             <a href={agentRuntimeUrl('/agent-pages.json')} className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -344,7 +345,9 @@ export default function AgentAccessPage() {
         </div>
       </section>
 
-      <section id="install" className="border-b border-border">
+      <ChatGPTInstallCard />
+
+      <section id="install" className="scroll-mt-24 border-b border-border">
         <div className="mx-auto max-w-7xl px-5 py-16 md:py-20">
           <div className="mb-8 max-w-2xl">
             <p className="text-sm font-medium text-[var(--signal)]">Install paths</p>
