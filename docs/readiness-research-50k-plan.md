@@ -1,6 +1,7 @@
 # 50,000-site research execution plan
 
-Status: implementation and source validation. No production run started.
+Status: disabled production database migration installed; source extraction
+and application deployment in progress. No production run started.
 
 ## Authorization and checkpoints
 
@@ -108,3 +109,8 @@ Primary references:
   gates passed. Production build passed with CI-style placeholder public env.
 - The first build lacked public Supabase env values and failed configuration
   collection. No production secrets were copied into the build to fix it.
+- PR 303 passed all CI checks, including full Supabase clean replay and E2E.
+  The protected preview rejects unauthenticated research requests with HTTP 401.
+- The additive migration was applied to production at version
+  `20260921195549`. Research remains disabled until the separate smoke test.
+  Security advisor warnings are unchanged from the pre-migration baseline.
