@@ -18,7 +18,7 @@ export class ScanNetworkError extends Error {
 /** One bounded scan, including every redirect and auxiliary request. Nothing
  * returned by this context belongs in an event payload or durable step result.
  */
-export function createScanNetworkContext(token: string, orgId: string | null = null, client?: SupabaseClient) {
+export function createScanNetworkContext(token: string, orgId: string | null = null, client?: SupabaseClient, purpose: 'interactive' | 'research' = 'interactive') {
   let admin: SupabaseClient
   try { admin = client ?? createAdminClient() } catch { throw new ScanNetworkError('network_error') }
   // Anonymous routes have a 30-second invocation budget. Leave room for
@@ -41,7 +41,11 @@ export function createScanNetworkContext(token: string, orgId: string | null = n
     if (!permit) {
       permit = (async () => {
         let status: unknown
-        try { status = await scanRpc(admin, 'acquire_scan_network_slot', { p_domain: domain, p_token: token, p_org_id: orgId }) }
+        try {
+          status = purpose === 'research'
+            ? await scanRpc(admin, 'acquire_study_network_slot', { p_domain: domain, p_token: token })
+            : await scanRpc(admin, 'acquire_scan_network_slot', { p_domain: domain, p_token: token, p_org_id: orgId })
+        }
         catch {
           captureEvent('scanner.limiter_unavailable', { scope: orgId ? 'organization' : 'public', ...(orgId ? { orgId } : {}) })
           fail('network_error')

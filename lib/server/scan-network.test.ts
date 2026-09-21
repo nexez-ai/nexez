@@ -25,6 +25,15 @@ beforeEach(() => {
 })
 
 describe('shared scanner network boundary', () => {
+  it('routes research through its lower-priority limiter without changing interactive scans', async () => {
+    const context = createScanNetworkContext('study-lease', null, undefined, 'research')
+    try {
+      await context.options.beforeRequest!('https://example.com/')
+      expect(rpc).toHaveBeenCalledWith('acquire_study_network_slot', { p_domain: 'example.com', p_token: 'study-lease' })
+      expect(rpc.mock.calls.some(([name]) => name === 'acquire_scan_network_slot')).toBe(false)
+    } finally { await context.close() }
+    expect(rpc).toHaveBeenLastCalledWith('release_scan_network_slot', { p_token: 'study-lease' })
+  })
   it('checks the durable limiter before fetching robots or a page, and caches one permit per registrable domain', async () => {
     const context = createScanNetworkContext('token')
     try {
