@@ -114,3 +114,22 @@ Primary references:
 - The additive migration was applied to production at version
   `20260921195549`. Research remains disabled until the separate smoke test.
   Security advisor warnings are unchanged from the pre-migration baseline.
+- The preview had applied the identical migration under its original filename.
+  Its one matching history entry was aligned to the production timestamp after
+  the renamed file exposed that mismatch. No schema or customer data was reset.
+
+## Offline frame tools
+
+`research-source-overture.py` extracts minimal records without scanning sites.
+After inspecting taxonomy counts, freeze exact category tokens in a mapping
+JSON file with `release`, `version`, `selectedOn`, and `categories` keys.
+
+`research-frame.mjs` accepts a JSONL export, mapping file, new output directory,
+cohort, source Parquet path and optional per-category cap (default 15,000).
+It emits a private target file and an aggregate manifest with input/output
+checksums. It refuses insufficient category coverage and existing output paths.
+
+`research-import.mjs` accepts that frame directory, an explicit project ref and
+`--apply` (default: generate only). It verifies checksums and imports in resumable
+1,000-record transactions. The cohort stays `preparing`; this cannot launch scans.
+Inspect the imported counts and source manifest before freezing and enabling it.
