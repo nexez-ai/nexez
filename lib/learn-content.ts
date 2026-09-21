@@ -88,8 +88,10 @@ import { howAgentsIdentifyYourBusiness } from './learn-articles/how-agents-ident
 import { howToVerifyAiAgents } from './learn-articles/how-to-verify-ai-agents'
 import { returnPoliciesForAiAgents } from './learn-articles/return-policies-for-ai-agents'
 import { whenAiGetsYourBusinessWrong } from './learn-articles/when-ai-gets-your-business-wrong'
+import { deliveryPromisesForAiAgents } from './learn-articles/delivery-promises-for-ai-agents'
 
 export const learnArticles: LearnArticle[] = [
+  deliveryPromisesForAiAgents,
   whenAiGetsYourBusinessWrong,
   returnPoliciesForAiAgents,
   howToVerifyAiAgents,
