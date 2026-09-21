@@ -35,8 +35,10 @@ export function batchSql(manifest, targets) {
 set local statement_timeout='30s';
 set local standard_conforming_strings=on;
 ${importGuard(manifest)}
+create temporary table readiness_import_batch on commit drop as
+  select * from jsonb_to_recordset(${rows}::jsonb) x(${columns});
 do $batch$ begin
-  if exists(select 1 from jsonb_to_recordset(${rows}::jsonb) x(${columns})
+  if exists(select 1 from pg_temp.readiness_import_batch x
     join public.study_run_targets t on t.cohort=x.cohort and t.domain_key=x.domain_key
     where (t.url,t.vertical,t.region,t.source_ref,t.sample_rank)
       is distinct from (x.url,x.vertical,x.region,x.source_ref,x.sample_rank)) then
@@ -45,7 +47,7 @@ do $batch$ begin
 end $batch$;
 insert into public.study_run_targets(cohort,domain_key,url,vertical,region,source_ref,sample_rank)
   select cohort,domain_key,url,vertical,region,source_ref,sample_rank
-  from jsonb_to_recordset(${rows}::jsonb) x(${columns})
+  from pg_temp.readiness_import_batch
   on conflict(cohort,domain_key) do nothing;
 commit;
 select count(*) as imported from public.study_run_targets where cohort=${sqlText(manifest.cohort)};
