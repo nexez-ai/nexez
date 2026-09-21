@@ -440,14 +440,14 @@ export async function runStudyScanBatch(opts: { cohort: string; batchSize?: numb
  * study_control row. Fail closed on any missing piece (no env, no row, no
  * token). Constant-time digest comparison.
  */
-export async function authorizeStudyRequest(request: Request): Promise<boolean> {
+export async function authorizeStudyRequest(request: Request, controlKey = 'runner'): Promise<boolean> {
   const token = readBearerToken(request)
   if (!token || !hasSupabaseAdminEnv()) return false
   try {
     const { data } = await createAdminClient()
       .from('study_control')
       .select('token_sha256, enabled')
-      .eq('key', 'runner')
+      .eq('key', controlKey)
       .maybeSingle<{ token_sha256: string | null; enabled: boolean }>()
     if (!data?.enabled || !data.token_sha256) return false
     const provided = createHash('sha256').update(token).digest()
