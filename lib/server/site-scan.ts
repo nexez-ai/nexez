@@ -2,6 +2,7 @@ import 'server-only'
 import { getImportUrlError, getResolvedImportUrlError, safeFetch } from '../importer'
 import { parseRobotsForAgentBots, type AgentBot, type CrawlabilitySignals } from '../crawlability'
 import { readBodyCapped } from './read-body-capped'
+import { isResearchLlmsText, researchPageFailure, type ResearchQuality } from './research-quality'
 
 export { readBodyCapped } from './read-body-capped'
 
@@ -194,6 +195,8 @@ export type SiteScanOptions = {
   signal?: AbortSignal
   beforeRequest?: (url: string) => Promise<boolean>
   onBodyBytes?: (bytes: number) => void
+  /** Opt-in research validation, never enabled by customer scan callers. */
+  researchProtocolVersion?: 2
 }
 
 function scanFetch(url: string, init: RequestInit, options: SiteScanOptions) {
@@ -216,14 +219,15 @@ async function probeJson(url: string, kind: 'agent' | 'agent-card' | 'mcp' | 'op
   }
 }
 
-async function fetchCapped(url: string, maxBytes: number, options: SiteScanOptions): Promise<string | null> {
+async function fetchCapped(url: string, maxBytes: number, options: SiteScanOptions, researchLlms = false): Promise<string | null> {
   const res = await scanFetch(url, { headers: { 'User-Agent': SCAN_UA } }, options)
   if (!res || !res.ok) return null
   const text = await readBodyCapped(res, maxBytes, options.onBodyBytes)
+  if (researchLlms) return isResearchLlmsText(text, res.headers.get('content-type')) ? text : null
   return text && text.trim().length >= 20 ? text : null
 }
 
-async function fetchPage(url: string, options: SiteScanOptions): Promise<{ status: number; ms: number; html: string; lastModified: string | null; finalUrl: string }> {
+async function fetchPage(url: string, options: SiteScanOptions): Promise<{ status: number; ms: number; html: string; contentType: string | null; lastModified: string | null; finalUrl: string }> {
   const started = Date.now()
   const res = await scanFetch(
     url,
@@ -231,9 +235,9 @@ async function fetchPage(url: string, options: SiteScanOptions): Promise<{ statu
     options,
   )
   const ms = Date.now() - started
-  if (!res) return { status: 0, ms, html: '', lastModified: null, finalUrl: url }
+  if (!res) return { status: 0, ms, html: '', contentType: null, lastModified: null, finalUrl: url }
   const html = res.ok ? (await readBodyCapped(res, HTML_BYTE_CAP, options.onBodyBytes)) || '' : ''
-  return { status: res.status, ms, html, lastModified: res.headers.get('last-modified'), finalUrl: res.url || url }
+  return { status: res.status, ms, html, contentType: res.headers.get('content-type'), lastModified: res.headers.get('last-modified'), finalUrl: res.url || url }
 }
 
 export type SiteSignalsResult = {
@@ -244,6 +248,7 @@ export type SiteSignalsResult = {
   robots: Record<AgentBot, boolean>
   /** Capped public page text for the gated LLM pass. Never returned by anonymous routes. */
   pageText: string
+  researchQuality?: ResearchQuality
 }
 
 export async function gatherSiteSignals(rawUrl: string, options?: SiteScanOptions): Promise<SiteSignalsResult | { error: string }> {
@@ -287,7 +292,7 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
     probeJson(`${origin}/.well-known/agent-card.json`, 'agent-card', options),
     probeJson(`${origin}/.well-known/mcp.json`, 'mcp', options),
     probeJson(`${origin}/openapi.json`, 'openapi', options),
-    fetchCapped(`${origin}/llms.txt`, JSON_BYTE_CAP, options),
+    fetchCapped(`${origin}/llms.txt`, JSON_BYTE_CAP, options, options.researchProtocolVersion === 2),
     fetchCapped(`${origin}/robots.txt`, ROBOTS_BYTE_CAP, options),
   ])
 
@@ -336,5 +341,15 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
     signals,
     robots,
     pageText: stripHtmlToText(html),
+    ...(options.researchProtocolVersion === 2 ? {
+      researchQuality: {
+        protocolVersion: 2 as const,
+        failure: researchPageFailure({
+          origin, contentType: page.contentType, html,
+          text: stripHtmlToText(html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, ''), 50_000),
+          title: stripHtmlToText(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || ''),
+        }),
+      },
+    } : {}),
   }
 }

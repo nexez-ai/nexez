@@ -7,6 +7,7 @@ import { buildScanResultRow, hashScanDomain } from './log-scan-result'
 import { createScanNetworkContext, ScanNetworkError } from './scan-network'
 import { scanRpc } from './organization-scans'
 import { gatherSiteSignals, type SiteSignalsResult } from './site-scan'
+import { RESEARCH_PROTOCOL_VERSION, type ResearchContentFailure } from './research-quality'
 
 type ResearchTarget = {
   id: string
@@ -26,6 +27,7 @@ export function researchDomain(hostname: string): string | null {
 
 export function buildResearchObservation(result: SiteSignalsResult, cohort: string, vertical: string) {
   if (result.signals.status < 200 || result.signals.status >= 300) return null
+  if (result.researchQuality?.protocolVersion !== RESEARCH_PROTOCOL_VERSION || result.researchQuality.failure !== null) return null
   const domain = researchDomain(new URL(result.origin).hostname)
   if (!domain) return null
   const row = buildScanResultRow({
@@ -35,6 +37,7 @@ export function buildResearchObservation(result: SiteSignalsResult, cohort: stri
   if (!row) return null
   // Never persist fetched text or put raw domains into the aggregate table.
   const metrics = Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'domain' && key !== 'domain_hash'))
+  metrics.research_protocol_version = RESEARCH_PROTOCOL_VERSION
   return { metrics, domainHash: hashScanDomain(domain) }
 }
 
@@ -43,15 +46,17 @@ async function scanResearchTarget(target: ResearchTarget) {
   const admin = createAdminClient()
   let network: ReturnType<typeof createScanNetworkContext> | undefined
   let observation: ReturnType<typeof buildResearchObservation> = null
-  let failure: ScanNetworkError['code'] | null = null
+  let failure: ScanNetworkError['code'] | ResearchContentFailure | null = null
   try {
     network = createScanNetworkContext(target.lease_token, null, admin, 'research')
-    const result = await gatherSiteSignals(target.url, network.options)
+    const result = await gatherSiteSignals(target.url, { ...network.options, researchProtocolVersion: RESEARCH_PROTOCOL_VERSION })
     network.assertFinished()
     if ('error' in result) failure = 'target_unavailable'
     else {
       observation = buildResearchObservation(result, target.cohort, target.vertical)
-      if (!observation) failure = result.signals.status === 429 || result.signals.status >= 500 ? 'network_error' : 'target_unavailable'
+      if (!observation) failure = result.signals.status === 429 || result.signals.status >= 500 ? 'network_error'
+        : result.signals.status >= 200 && result.signals.status < 300
+          ? result.researchQuality?.failure ?? 'target_unavailable' : 'target_unavailable'
     }
   } catch (error) {
     failure = error instanceof ScanNetworkError ? error.code : 'network_error'
@@ -73,6 +78,8 @@ async function scanResearchTarget(target: ResearchTarget) {
  */
 export async function runResearchBatch(cohort: string, dispatchId: string) {
   const admin = createAdminClient()
+  const status = await readResearchStatus(cohort) as { researchProtocolVersion?: number } | null
+  if (status?.researchProtocolVersion !== RESEARCH_PROTOCOL_VERSION) throw new Error('Incompatible research protocol')
   const data = await scanRpc(admin, 'claim_study_run_batch', { p_cohort: cohort, p_dispatch: dispatchId })
   const targets = data as ResearchTarget[] | null
   if (!Array.isArray(targets) || targets.length > 6) throw new Error('Invalid research claim')
