@@ -165,4 +165,45 @@ describe('gatherSiteSignals', () => {
     expect(output.origin).toBe('https://www.acme.com')
     expect(safeFetch.mock.calls.slice(1).every((call) => String(call[0]).startsWith('https://www.acme.com/'))).toBe(true)
   })
+
+  it('does not count an HTML soft-404 as llms.txt in research mode', async () => {
+    safeFetch.mockImplementation(async () => bodyResponse(
+      '<html><head><title>Page not found</title></head><body>Sorry, this page does not exist.</body></html>',
+      { headers: { 'Content-Type': 'text/html' } },
+    ))
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 2 })
+    if ('error' in output) throw new Error('Unexpected URL error')
+    expect(output.signals.llmsTxtOk).toBe(false)
+    expect(output.researchQuality).toEqual({ protocolVersion: 2, failure: 'unavailable_page' })
+    const legacy = await gatherSiteSignals('acme.com', {})
+    if ('error' in legacy) throw new Error('Unexpected URL error')
+    expect(legacy.signals.llmsTxtOk).toBe(true)
+    expect(legacy).not.toHaveProperty('researchQuality')
+  })
+
+  it('accepts readable research HTML and a short valid llms.txt without extra requests', async () => {
+    safeFetch.mockImplementation(async (url: string) => {
+      if (url.endsWith('/llms.txt')) return bodyResponse('# Acme', { headers: { 'Content-Type': 'text/markdown' } })
+      if (url.endsWith('/')) return bodyResponse(
+        '<html><head><title>Acme Plumbing</title></head><body><p>Acme Plumbing provides installation and repairs throughout the local area. Contact our team to schedule service.</p></body></html>',
+        { headers: { 'Content-Type': 'text/html' } },
+      )
+      return new Response('', { status: 404 })
+    })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 2 })
+    if ('error' in output) throw new Error('Unexpected URL error')
+    expect(output.researchQuality).toEqual({ protocolVersion: 2, failure: null })
+    expect(output.signals.llmsTxtOk).toBe(true)
+    expect(safeFetch).toHaveBeenCalledTimes(8)
+  })
+
+  it('does not use a long HTML title to qualify an empty research page', async () => {
+    safeFetch.mockImplementation(async () => bodyResponse(
+      `<html><head><title>${'Business title '.repeat(20)}</title></head><body></body></html>`,
+      { headers: { 'Content-Type': 'text/html' } },
+    ))
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 2 })
+    if ('error' in output) throw new Error('Unexpected URL error')
+    expect(output.researchQuality?.failure).toBe('insufficient_content')
+  })
 })

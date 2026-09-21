@@ -123,4 +123,54 @@ begin
   update public.study_runs set state='pilot',deadline_at=clock_timestamp()-interval '1 second' where cohort=t.cohort;
   assert public.dispatch_readiness_study(t.cohort)='paused', 'deadline stop';
 end $$;
+
+-- Protocol 2 is a new cohort, never a relabeling of frozen old observations.
+insert into public.study_runs(cohort,target_successes,success_limit,research_protocol_version)
+  values('test-quality',60000,2,2),('test-quality-failures',60000,500,2);
+insert into public.study_run_targets(cohort,domain_key,url,vertical,region,source_ref,sample_rank)
+  select c,'quality'||i||'.com','https://quality'||i||'.com','retail','CA','fixture-'||i,
+    encode(sha256(convert_to(i::text,'UTF8')),'hex')
+  from unnest(array['test-quality','test-quality-failures']) c cross join generate_series(1,6) i;
+update public.study_runs set source_frozen_at=clock_timestamp(),state='pilot' where cohort in ('test-quality','test-quality-failures');
+do $$
+begin
+  assert (public.study_run_status('test-quality')->>'researchProtocolVersion')::integer=2;
+  assert (public.study_run_status('test-study')->>'researchProtocolVersion')::integer=1;
+  assert (select success_limit=2 and max_attempts=1500 and max_dispatches=500 and budget_cents=10000
+    from public.study_runs where cohort='test-quality'), 'extended target does not change active caps';
+  begin update public.study_runs set research_protocol_version=2 where cohort='test-study';
+    raise exception 'frozen protocol changed'; exception when raise_exception then assert sqlerrm='study_protocol_frozen'; end;
+  begin insert into public.study_runs(cohort,target_successes) values('test-unbounded',100001);
+    raise exception 'unbounded target accepted'; exception when check_violation then null; end;
+  begin update public.study_runs set budget_cents=10001 where cohort='test-quality';
+    raise exception 'budget ceiling bypassed'; exception when check_violation then null; end;
+  assert public.dispatch_readiness_study('test-quality')='dispatched';
+  assert public.dispatch_readiness_study('test-quality-failures')='dispatched';
+end $$;
+set local role service_role;
+do $$
+declare d uuid; t public.study_run_targets; good jsonb; reason text; i integer:=0;
+begin
+  select id into d from public.study_run_dispatches where cohort='test-quality';
+  assert (select count(*) from public.claim_study_run_batch('test-quality',d))=2, 'protocol 2 still respects pilot limit';
+  good := '{"source":"study","scanner_version":2,"research_protocol_version":2,"score":50,"http_status":200}';
+  for t in select * from public.study_run_targets where cohort='test-quality' and state='running' loop
+    begin perform public.finish_study_run_target(t.cohort,t.id,t.lease_token,good-'research_protocol_version',repeat('c',64),null,1,2,3);
+      raise exception 'old observation mixed into new protocol'; exception when raise_exception then assert sqlerrm='invalid_study_metrics'; end;
+    begin perform public.finish_study_run_target(t.cohort,t.id,t.lease_token,good||'{"pageText":"private"}',repeat('c',64),null,1,2,3);
+      raise exception 'raw content accepted'; exception when raise_exception then assert sqlerrm='invalid_study_metrics'; end;
+    i:=i+1;
+    assert public.finish_study_run_target(t.cohort,t.id,t.lease_token,good,repeat(i::text,64),null,1,2,3);
+  end loop;
+  assert (select state='pilot_review' from public.study_runs where cohort='test-quality'), 'protocol 2 automatic review stop';
+  select id into d from public.study_run_dispatches where cohort='test-quality-failures';
+  assert (select count(*) from public.claim_study_run_batch('test-quality-failures',d))=6;
+  foreach reason in array array['non_html','insufficient_content','challenge_page','parked_domain','unavailable_page','excluded_destination'] loop
+    select * into t from public.study_run_targets where cohort='test-quality-failures' and state='running' limit 1;
+    assert public.finish_study_run_target(t.cohort,t.id,t.lease_token,null,null,reason,1,2,3);
+    assert (select state='failed' and failure_code=reason from public.study_run_targets where id=t.id), 'quality exclusions do not retry';
+  end loop;
+  assert (select count(*) from public.study_run_results where cohort='test-quality-failures')=0, 'unusable pages never scored';
+end $$;
+reset role;
 rollback;

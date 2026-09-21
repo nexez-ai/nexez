@@ -1,7 +1,11 @@
-# 50,000-site research execution plan
+# Website-readiness research execution plan
 
-Status: disabled production database migration installed; source extraction
-and application deployment in progress. No production run started.
+Status: the original production pilot started on 2026-09-21. Its observations
+are provisional. Pilot review found two measurement defects, now addressed in
+research protocol 2: HTML soft-404s could count as llms.txt, and HTTP 200 alone
+did not establish usable page content. Deployment and a separate corrected
+pilot are required before scaling. See the private operations snapshot at
+`outputs/research-50k-2026-09-21/STATUS.md` for current counts and rollout state.
 
 ## Authorization and checkpoints
 
@@ -13,6 +17,10 @@ and application deployment in progress. No production run started.
 - Target: 50,000 usable, unique US business websites in the existing five
   broad categories. This is a new expanded cross-section, not automatically a
   longitudinal comparison or a nationally representative sample.
+- The owner subsequently authorized including all additional qualifying results
+  beyond 50,000 within USD 100. Do not truncate the final sample at that target.
+  The schema permits a bounded target up to 100,000; this does not raise any
+  active run's pilot, attempt, dispatch, deadline or cost limits.
 - Gate 1: freeze and audit the source frame, eligibility rules and deduplication.
 - Gate 2: deploy a disabled runner after local tests and CI.
 - Gate 3: collect at most 500 successful pilot observations, inspect yield,
@@ -88,6 +96,37 @@ The August study used OSM and different geography/selection. Do not claim that
 the difference between the two studies measures change over time. A panel study
 would require a separately identified comparable cohort and scanner audit.
 
+## Research protocol 2
+
+The crawlability scorer remains version 2. An independent
+`research_protocol_version=2` marks the revised research collection rules.
+Customer scans do not opt into this protocol and retain their existing behavior.
+The runner refuses incompatible cohorts before claiming work, and the database
+rejects mixed-protocol observations. Protocol identity cannot change after a
+cohort's source frame is frozen. Preserve the original pilot for audit, exclude
+it from publication, and rescan into a separately identified protocol-2 cohort.
+
+- Root llms.txt must be non-HTML/non-JSON text with the required Markdown H1.
+  This is a bounded format check, not proof that any AI system uses the file.
+  Subdirectory files and link-discovery are not part of this probe.
+- Homepage responses must be HTML, have at least 80 extracted visible characters,
+  and avoid the documented parked-domain, challenge and unavailable-page markers.
+  These conservative heuristics need a pilot spot audit. They cannot prove a
+  business is legitimate, independent or still trading.
+- Exclude redirects to the same shared platforms excluded by source selection.
+- Keep closed quality-failure codes separate from DNS/network failures, robots
+  exclusions, and duplicate final domains. Do not give excluded pages a score.
+- The visible-text threshold can omit legitimate minimalist or JavaScript-only
+  sites. Report this exclusion and denominator; the results describe accessible
+  qualifying HTML pages, not every business or every page on each website.
+
+The corrected pilot retains the 500-success checkpoint. Re-estimate final sample
+size, source-frame size, attempts, dispatches and total cost using its yield.
+The original 75,000-attempt and 14,000-dispatch limits are unchanged. Do not
+enable a larger run just because its target ceiling was extended.
+
+Format reference: https://llmstxt.org/ (proposal reviewed 2026-09-21).
+
 Primary references:
 
 - https://docs.overturemaps.org/guides/places/
@@ -111,12 +150,20 @@ Primary references:
   collection. No production secrets were copied into the build to fix it.
 - PR 303 passed all CI checks, including full Supabase clean replay and E2E.
   The protected preview rejects unauthenticated research requests with HTTP 401.
-- The additive migration was applied to production at version
-  `20260921195549`. Research remains disabled until the separate smoke test.
+- The original additive migration was applied to production at version
+  `20260921195549`; its separate smoke test passed before the original pilot.
   Security advisor warnings are unchanged from the pre-migration baseline.
 - The preview had applied the identical migration under its original filename.
   Its one matching history entry was aligned to the production timestamp after
   the renamed file exposed that mismatch. No schema or customer data was reset.
+- Research protocol 2: both original defects reproduced as failing regression
+  tests before the fix. Focused scanner, transport, network and research tests
+  passed locally, as did the PostgreSQL fixture covering protocol fencing,
+  privacy, expanded-but-bounded targets, quality exclusions and the pilot stop.
+  Its additive production migration is `20260921232547`. Existing cohorts kept
+  protocol 1 and their original limits. Security advisor counts stayed at the
+  pre-existing baseline. Application deployment and full CI status belong in
+  the operations snapshot.
 
 ## Offline frame tools
 
