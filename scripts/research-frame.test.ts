@@ -41,7 +41,8 @@ describe('offline research source frame', () => {
     expect(frame.audit.duplicateInputDomains).toBe(1)
     expect(frame.audit.uniqueEligibleDomains).toBe(15)
     expect(JSON.stringify(frame.targets)).not.toContain('email')
-    expect(frame.targets[0].sample_rank).toBe(sha256(`test-cohort:${frame.targets[0].domain_key}`))
+    expect(frame.targets[0].sample_rank).toBe(sha256(`test-cohort:scan:${frame.targets[0].domain_key}`))
+    expect(frame.targets.map(row => row.sample_rank)).toEqual(frame.targets.map(row => row.sample_rank).toSorted())
   })
   it('requires every category to meet its frozen input cap', () => {
     const selector = createFrameSelector('test-cohort', config)

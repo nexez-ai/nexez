@@ -80,7 +80,7 @@ export function createFrameSelector(cohort, config) {
       const target = {
         cohort, ...websites[0], vertical, region: record.region,
         source_ref: `overture:${config.release}:${record.source_id}`,
-        sample_rank: sha256(`${cohort}:${websites[0].domain_key}`),
+        sample_rank: sha256(`${cohort}:scan:${websites[0].domain_key}`),
       }
       // Domain collisions across places, states or categories are resolved
       // independently of readiness and without relying on input file order.
@@ -88,7 +88,9 @@ export function createFrameSelector(cohort, config) {
       const previous = domains.get(target.domain_key)
       if (previous) counts.duplicateInputDomains += 1
       if (!previous || compare(tie, previous.tie) < 0
-        || (tie === previous.tie && compare(JSON.stringify(target), JSON.stringify(previous.target)) < 0)) domains.set(target.domain_key, { target, tie })
+        || (tie === previous.tie && compare(JSON.stringify(target), JSON.stringify(previous.target)) < 0)) domains.set(target.domain_key, {
+          target, tie, selectionRank: sha256(`${cohort}:${target.domain_key}`),
+        })
     },
     finish(perVertical = 15000) {
       if (!Number.isInteger(perVertical) || perVertical < 1 || perVertical > 15000) throw new Error('Invalid category cap')
@@ -96,8 +98,9 @@ export function createFrameSelector(cohort, config) {
       const selectedByVertical = Object.fromEntries(VERTICALS.map(vertical => [vertical, 0]))
       const selectedByRegion = {}
       const targets = []
-      const ordered = [...domains.values()].map(row => row.target)
-        .sort((a, b) => compare(a.sample_rank, b.sample_rank) || compare(a.domain_key, b.domain_key))
+      const ordered = [...domains.values()]
+        .sort((a, b) => compare(a.selectionRank, b.selectionRank) || compare(a.target.domain_key, b.target.domain_key))
+        .map(row => row.target)
       for (const target of ordered) {
         eligibleByVertical[target.vertical] += 1
         if (selectedByVertical[target.vertical] >= perVertical) continue
@@ -106,6 +109,9 @@ export function createFrameSelector(cohort, config) {
         selectedByRegion[target.region] = (selectedByRegion[target.region] ?? 0) + 1
       }
       if (VERTICALS.some(vertical => selectedByVertical[vertical] < perVertical)) throw new Error(`Insufficient category frame: ${JSON.stringify(eligibleByVertical)}`)
+      // A second, independent seed orders cloud scanning. Reusing the selection
+      // rank would overrepresent large source categories in the early pilot.
+      targets.sort((a, b) => compare(a.sample_rank, b.sample_rank) || compare(a.domain_key, b.domain_key))
       return { targets, audit: { ...counts, uniqueEligibleDomains: domains.size, eligibleByVertical, selectedByVertical, selectedByRegion, selected: targets.length } }
     },
   }
@@ -135,7 +141,7 @@ async function main() {
     sourceParquetSha256: await fileHash(parquet), sourceJsonlSha256: await fileHash(input),
     mappingSha256: await fileHash(mappingPath), selectorSha256: await fileHash(new URL(import.meta.url)),
     targetsSha256: sha256(targetText), perVertical: Number(cap), ...audit,
-    method: 'One eligible own-site origin per place by seeded domain hash, HTTPS tie preference; dedupe registrable domains by seeded source-record hash; take lowest seeded domain hashes within each of five categories. Final redirect domains deduped separately during scanning.',
+    method: 'One eligible own-site origin per place by seeded domain hash, HTTPS tie preference; dedupe registrable domains by seeded source-record hash; select lowest SHA256(cohort:domain) within each category. Independently order scans by SHA256(cohort:scan:domain) to avoid biasing pilot composition toward larger source categories. Final redirect domains deduped separately.',
     limitations: 'Open, confidence >= 0.9, no brand metadata, US states plus DC. No-brand does not prove independent ownership. Coverage and category-balanced selection are not nationally representative. New baseline, not a trend from the August OSM study.',
     attribution: 'Overture Maps Foundation, Places release 2026-08-19.0. See https://docs.overturemaps.org/attribution/ for contributor notices and licenses. Raw source provenance is retained in the private frozen extract.',
   }
