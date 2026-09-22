@@ -98,6 +98,14 @@ describe('GET /[slug]/agent.json', () => {
     expect(body.plain_text).toContain(`Storefront: ${body.storefront.url}`)
   })
 
+  it('preserves direct reviewer artifact access when a fixture is excluded from discovery', async () => {
+    const slug = 'shopify-review-rehearsal-20260908'
+    dbRef.handler = () => ({ data: { ...demoPage, slug, marketplace_discoverable: false }, error: null })
+    const res = await GET(new Request(`https://nexez.test/${slug}/agent.json`), ctx(slug))
+    expect(res.status).toBe(200)
+    expect(JSON.stringify(await res.json())).toContain(slug)
+  })
+
   it('includes verified review summaries when present', async () => {
     dbRef.handler = () => ({ data: demoPage, error: null })
     reviewRef.summary = {

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from '@google/generative-ai';
+import { GoogleGenAI, FunctionCallingConfigMode, Type as SchemaType, type FunctionDeclaration } from '@google/genai';
 import { BaseLLMAdapter, LLMAdapterError, NegotiationDecision, NegotiationAction, requireCounterPriceCents } from './BaseLLMAdapter';
 import { NEGOTIATION_SAFETY_PREAMBLE, fenceUntrusted } from './prompt-safety';
 
@@ -8,30 +8,21 @@ import { NEGOTIATION_SAFETY_PREAMBLE, fenceUntrusted } from './prompt-safety';
  * Passes the EXACT system prompt from the spec + full history for memory.
  */
 export class GeminiAdapter extends BaseLLMAdapter {
-  private client: GoogleGenerativeAI;
+  private client: GoogleGenAI;
   readonly provider = 'gemini';
 
-  constructor(apiKey: string, model = 'gemini-1.5-flash', _baseUrl?: string) {
+  constructor(apiKey: string, model = 'gemini-2.5-flash', _baseUrl?: string) {
     super();
     this.model = model;
-    this.client = new GoogleGenerativeAI(apiKey);
+    this.client = new GoogleGenAI({ apiKey });
   }
 
   async negotiate(rules: any, proposal: any, history: any[]): Promise<NegotiationDecision> {
-    const model = this.client.getGenerativeModel({
-      model: this.model,
-      systemInstruction: this.getExactSystemPrompt(),
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 1024,
-      },
-    });
-
     // Build the full conversation context for perfect memory (as required).
     const historyContext = this.buildHistoryContext(history, proposal);
 
     // Define the exact functions from the spec as Gemini function declarations.
-    const tools = [
+    const tools: FunctionDeclaration[] = [
       {
         name: 'accept_proposal',
         description: 'Accept the proposal when it fully complies with all seller rules.',
@@ -92,16 +83,25 @@ export class GeminiAdapter extends BaseLLMAdapter {
     ];
 
     try {
-      const result = await model.generateContent({
+      const result = await this.client.models.generateContent({
+        model: this.model,
         contents: [{ role: 'user', parts: [{ text: historyContext }] }],
-        tools: [{ functionDeclarations: tools as any }],
-        toolConfig: { functionCallingConfig: { mode: 'ANY' } } as any, // Force function call
+        config: {
+          systemInstruction: this.getExactSystemPrompt(),
+          temperature: 0.2,
+          maxOutputTokens: 1024,
+          // The default uses bounded, non-thinking tool selection. Do not impose
+          // a model-specific thinking setting on explicit operator overrides.
+          ...(this.model === 'gemini-2.5-flash' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          tools: [{ functionDeclarations: tools }],
+          toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.ANY } },
+        },
       });
 
-      const calls = (result.response as any).functionCalls?.() || [];
+      const calls = result.functionCalls || [];
       const call = calls[0];
-      if (!call) {
-        throw new Error('Gemini did not return a function call');
+      if (calls.length !== 1 || !call?.name || !tools.some((tool) => tool.name === call.name)) {
+        throw new Error('Gemini must return exactly one supported function call');
       }
 
       return this.parseFunctionCall(call.name, call.args || {});

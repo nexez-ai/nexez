@@ -132,7 +132,7 @@ npm run check:expo-deps
 
 The root contract gate checks every mobile API Route Handler plus public-name rules, seller
 notification payloads, connector capabilities, entitlement schema and feature keys, negotiation
-statuses and rules, secure feature boundaries, and web handoffs. The paths-filtered `Nexxi Mobile`
+statuses and rules, secure feature boundaries, and web handoffs. The paths-filtered `Nexez Seller Hub`
 workflow runs typecheck, the mobile-owned Vitest suite, Expo lint, and the SDK compatibility check
 on every mobile PR. The route suite covers custom-scheme and Nexez web links, notification payload
 fallbacks, foreign hosts, malformed inputs, traversal attempts, and unsafe record IDs.

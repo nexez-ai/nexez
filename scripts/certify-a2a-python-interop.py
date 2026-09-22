@@ -30,7 +30,7 @@ from a2a.types import (
 from a2a.helpers import new_text_message
 from importlib.metadata import version
 
-SDK_VERSION = "1.1.2"
+SDK_VERSION = "1.1.5"
 MODE = os.getenv("NEXEZ_A2A_PYTHON_INTEROP_MODE", "public").strip().lower()
 AGENT_BASE = os.getenv("NEXEZ_A2A_INTEROP_BASE_URL", "https://nexez.app").rstrip("/")
 APP_BASE = os.getenv("NEXEZ_A2A_INTEROP_APP_BASE_URL", "https://app.nexez.ai").rstrip("/")

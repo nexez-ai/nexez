@@ -44,7 +44,7 @@ jobs:
         run: npm ci
 
       - name: Install the pinned official A2A SDK without changing manifests
-        run: npm install --no-save --no-package-lock --ignore-scripts @a2a-js/sdk@1.1.0
+        run: npm install --no-save --no-package-lock --ignore-scripts @a2a-js/sdk@1.2.0
 
       - name: Run public official SDK interoperability
         run: npm run certify:a2a-sdk-interop
@@ -98,7 +98,7 @@ jobs:
         run: npm ci
 
       - name: Install the pinned official A2A SDK without changing manifests
-        run: npm install --no-save --no-package-lock --ignore-scripts @a2a-js/sdk@1.1.0
+        run: npm install --no-save --no-package-lock --ignore-scripts @a2a-js/sdk@1.2.0
 
       - name: Run authenticated official SDK interoperability
         run: npm run certify:a2a-sdk-interop

@@ -7,6 +7,7 @@ const INTERNAL_SEED_SLUGS = [
   /^nexez-agent-negotiation-lab$/i,
   /^nexez-party-rentals-certification$/i,
   /^shopify-review-catalog$/i,
+  /^shopify-review-rehearsal-\d{8}$/i,
 ]
 
 /**

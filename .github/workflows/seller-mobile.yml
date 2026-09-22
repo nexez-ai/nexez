@@ -1,9 +1,7 @@
-name: Nexxi Mobile
+name: Nexez Seller Hub
 
-# Nexxi (apps/seller-mobile) had no CI at all: it is actively developed, carries
-# ~6k lines of TypeScript, and nothing in the root build, test or dead-code gates
-# reaches it. It is also excluded from knip.json, because it resolves through its
-# own @/* paths and never imports the Next app's lib/.
+# Nexez Seller Hub resolves its own dependencies and @/* paths. Verify the native
+# package independently, then check its contracts against the web platform.
 #
 # Its own workflow rather than a job in ci.yml, so the paths filter can live at the
 # workflow level. Same convention as openclaw-package-publish.yml and
@@ -14,17 +12,33 @@ on:
     branches: [main]
     paths:
       - 'apps/seller-mobile/**'
-      - '.github/workflows/nexxi-mobile.yml'
+      - '.github/workflows/seller-mobile.yml'
+      - 'lib/**/*.mobile-parity.test.ts'
+      - 'lib/seller-mobile-*.test.ts'
+      - 'lib/server/seller-mobile-*.test.ts'
+      - 'lib/integration-capabilities.ts'
+      - 'lib/public-identifier.ts'
+      - 'lib/negotiation-rules.ts'
   pull_request:
     branches: [main]
     paths:
       - 'apps/seller-mobile/**'
-      - '.github/workflows/nexxi-mobile.yml'
+      - '.github/workflows/seller-mobile.yml'
+      - 'lib/**/*.mobile-parity.test.ts'
+      - 'lib/seller-mobile-*.test.ts'
+      - 'lib/server/seller-mobile-*.test.ts'
+      - 'lib/integration-capabilities.ts'
+      - 'lib/public-identifier.ts'
+      - 'lib/negotiation-rules.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 # Supersede in-flight runs for the same PR, matching ci.yml. Not on main, where a
 # cancelled run would leave the branch unverified.
 concurrency:
-  group: nexxi-mobile-${{ github.workflow }}-${{ github.ref }}
+  group: seller-mobile-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -45,6 +59,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/seller-mobile/package-lock.json
       - run: npm ci
+      - name: Release configuration and artwork
+        run: npm run check:release-config
       - name: Typecheck
         run: npm run typecheck
       - name: Test
@@ -55,3 +71,16 @@ jobs:
         run: npm run check:expo-deps
       - name: Web bundle smoke
         run: npm run bundle:web
+
+  platform-contracts:
+    name: Seller Hub web and mobile contract parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check:mobile-platform-contracts

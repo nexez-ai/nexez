@@ -14,7 +14,7 @@ import {
   redactA2ACredentialMaterial,
 } from './a2a-canary-redaction.mjs'
 
-const SDK_VERSION = '1.1.0'
+const SDK_VERSION = '1.2.0'
 const AGENT_BASE = trim(process.env.NEXEZ_A2A_CANARY_BASE_URL || 'https://nexez.app')
 const APP_BASE = trim(process.env.NEXEZ_A2A_CANARY_APP_BASE_URL || 'https://app.nexez.ai')
 const A2A_URL = `${AGENT_BASE}/api/v1/a2a`
