@@ -58,3 +58,10 @@ describe('LoginForm passkeys', () => {
     expect(await screen.findByRole('button', { name: 'Continue with a text code' })).toBeEnabled()
   })
 })
+
+it('keeps Shopify signup on the guarded account route without advertising direct pricing', async () => {
+  render(<LoginForm initialMode="signup" nextPath="/dashboard/shopify" shopifyShop="review.myshopify.com" />)
+  expect(screen.queryByRole('link', { name: 'Pricing' })).toBeNull()
+  expect(screen.getByText(/No separate Nexez subscription or payment setup/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Start Free' })).toHaveAttribute('href', '/login?mode=signup&next=%2Fdashboard%2Fshopify')
+})

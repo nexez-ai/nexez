@@ -1,3 +1,6 @@
+vi.mock('../../../utils/supabase/admin', () => ({ hasSupabaseAdminEnv: () => true, createAdminClient: () => ({}) }))
+vi.mock('../../../lib/server/shopify-billing', () => ({ getOwnerShopifyBillingContext: vi.fn(async () => null) }))
+import { getOwnerShopifyBillingContext } from '../../../lib/server/shopify-billing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const refs = vi.hoisted(() => ({
@@ -54,6 +57,7 @@ const adminCallback = () => new Request('https://admin.nexez.ai/auth/callback?co
 describe('GET /auth/callback plan routing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getOwnerShopifyBillingContext).mockResolvedValue(null)
     refs.exchangeError = null
     refs.user = {
       id: 'user-1',
@@ -109,6 +113,18 @@ describe('GET /auth/callback plan routing', () => {
 
     expect(trial.ensure).toHaveBeenCalledWith('user-1', 'launch')
     expect(response.headers.get('location')).toBe('https://app.nexez.test/dashboard')
+  })
+
+  it('preserves Shopify signup across email confirmation without a handoff cookie or a Nexez plan choice', async () => {
+    refs.user.created_at = new Date().toISOString()
+    refs.user.user_metadata = { plan: 'scale' }
+    vi.mocked(getOwnerShopifyBillingContext).mockResolvedValue({
+      provider: 'shopify', shop: null, pricingUrl: '/dashboard/shopify',
+      planHandle: null, status: 'connection_required', verifiedAt: null,
+    })
+    const response = await GET(callback('/dashboard/shopify'))
+    expect(response.headers.get('location')).toBe('https://app.nexez.test/dashboard/shopify')
+    expect(trial.ensure).not.toHaveBeenCalled()
   })
 
   it('admits an approved operator on the isolated admin callback without seller onboarding', async () => {

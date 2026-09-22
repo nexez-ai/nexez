@@ -1,7 +1,8 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PlanId } from '../billing'
-import { SHOPIFY_API_VERSION } from './shopify'
+import { SHOPIFY_API_VERSION, readPendingShop } from './shopify'
+import { appUrl } from '../site'
 import type { ShopifyInstallCredentials } from './shopify-install'
 
 const SHOPIFY_PARTNER_TIMEOUT_MS = 10_000
@@ -29,7 +30,7 @@ type ActiveSubscription = {
 
 export type ShopifyBillingContext = {
   provider: 'shopify'
-  shop: string
+  shop: string | null
   pricingUrl: string
   planHandle: string | null
   status: string | null
@@ -160,7 +161,6 @@ async function writeOwnerPlan(
   if (readError) throw new Error('Could not inspect the Nexez billing record.')
   if (
     existing?.stripe_subscription_id
-    && existing.account_origin !== 'shopify'
     && !TERMINAL_STRIPE_SUBSCRIPTION_STATUSES.has(existing.status || '')
   ) {
     throw new Error('This Nexez account still has direct subscription billing and must be migrated before Shopify can manage its plan.')
@@ -230,7 +230,17 @@ export async function verifyShopifyBilling(
 export async function getOwnerShopifyBillingContext(
   admin: Pick<SupabaseClient, 'from'>,
   ownerId: string,
+  pendingShopCookie?: string,
 ): Promise<ShopifyBillingContext | null> {
+  // Billing origin is durable. Uninstalling, relinking, or losing the handoff
+  // cookie must not turn a Shopify account into a direct Stripe customer.
+  const { data: billing, error: billingError } = await admin
+    .from('billing_subscriptions')
+    .select('account_origin')
+    .eq('owner_id', ownerId)
+    .maybeSingle<{ account_origin: string | null }>()
+  if (billingError) throw new Error('Could not inspect account billing origin.')
+
   const { data, error } = await admin
     .from('shopify_installs')
     .select('shop_domain, shopify_plan_handle, shopify_billing_status, shopify_billing_verified_at')
@@ -245,7 +255,39 @@ export async function getOwnerShopifyBillingContext(
       shopify_billing_verified_at: string | null
     }>()
   if (error) throw new Error('Could not inspect Shopify billing ownership.')
-  if (!data) return null
+
+  // The verified handoff precedes account and listing creation. It is already
+  // proof of a Shopify entry, even while the install has no owner_id/page_id.
+  const pendingShop = readPendingShop(pendingShopCookie)
+  let pending = false
+  if (!data && pendingShop) {
+    const { data: install, error: pendingError } = await admin
+      .from('shopify_installs')
+      .select('shop_domain')
+      .eq('shop_domain', pendingShop)
+      .is('uninstalled_at', null)
+      .maybeSingle<{ shop_domain: string }>()
+    if (pendingError) throw new Error('Could not inspect the pending Shopify installation.')
+    pending = Boolean(install)
+  }
+  if (!data && !pending && billing?.account_origin !== 'shopify') return null
+
+  if (billing?.account_origin !== 'shopify') {
+    await rememberShopifyBillingOwner(admin, ownerId)
+  }
+
+  if (!data) {
+    return {
+      provider: 'shopify',
+      shop: pending ? pendingShop : null,
+      // Finish linking before opening plans. Without a current install, the
+      // connection page explains how to reopen/reinstall the Shopify app.
+      pricingUrl: appUrl('/dashboard/shopify'),
+      planHandle: null,
+      status: 'connection_required',
+      verifiedAt: null,
+    }
+  }
   return {
     provider: 'shopify',
     shop: data.shop_domain,
@@ -254,4 +296,19 @@ export async function getOwnerShopifyBillingContext(
     status: data.shopify_billing_status,
     verifiedAt: data.shopify_billing_verified_at,
   }
+}
+
+/** Call only after authenticated Shopify proof or server-side Shopify signup.
+ * Preserve existing plans, Stripe identifiers, and subscription state. This
+ * marker restricts future billing; it does not migrate or cancel subscriptions.
+ */
+export async function rememberShopifyBillingOwner(
+  admin: Pick<SupabaseClient, 'from'>,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await admin.from('billing_subscriptions').upsert({
+    owner_id: ownerId,
+    account_origin: 'shopify',
+  }, { onConflict: 'owner_id' })
+  if (error) throw new Error('Could not retain Shopify billing ownership.')
 }

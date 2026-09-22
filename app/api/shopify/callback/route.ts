@@ -1,3 +1,4 @@
+import { rememberShopifyBillingOwner } from '../../../../lib/server/shopify-billing'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { shopifyApiKey, shopifyConfigured, signPendingShop, verifyShopifyOAuthHmac } from '../../../../lib/server/shopify'
@@ -109,8 +110,9 @@ export async function GET(request: Request) {
       scope,
       ownerId: ownerId ?? undefined,
     })
+    if (ownerId) await rememberShopifyBillingOwner(createAdminClient(), ownerId)
   } catch {
-    return NextResponse.json({ error: 'Could not save the Shopify installation.' }, { status: 503 })
+    return NextResponse.json({ error: 'Could not finish Shopify account setup. Reopen the app in Shopify and try again.' }, { status: 503 })
   }
   jar.delete('shopify_oauth_state')
   // Signed proof that THIS browser just installed THIS shop → authorizes the

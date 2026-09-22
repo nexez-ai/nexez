@@ -25,7 +25,7 @@ vi.mock('stripe', () => ({
     subscriptions = { create: subscriptionsCreate, list: subscriptionsList, update: subscriptionsUpdate, cancel: subscriptionsCancel }
   },
 }))
-vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ getAll: () => [], set: () => {} })) }))
+vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ getAll: () => [], get: () => undefined, set: () => {} })) }))
 vi.mock('../../../../lib/rate-limit', () => ({
   enforceRateLimit: vi.fn(async () => rateLimitRef.response),
 }))
@@ -55,7 +55,7 @@ vi.mock('../../../../lib/server/shopify-billing', () => ({
 import { POST } from './route'
 import { createClient } from '../../../../utils/supabase/server'
 import { getBillingPlan, getPlanPriceId, isUniqueSelfServePlanPrice } from '../../../../lib/billing'
-import { hasSupabaseAdminEnv } from '../../../../utils/supabase/admin'
+import { hasSupabaseAdminEnv, createAdminClient } from '../../../../utils/supabase/admin'
 import { getOwnerShopifyBillingContext } from '../../../../lib/server/shopify-billing'
 
 const jsonRequest = (body: Record<string, unknown>) =>
@@ -69,7 +69,8 @@ describe('POST /api/billing/create-subscription', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getOwnerShopifyBillingContext).mockResolvedValue(null)
-    vi.mocked(hasSupabaseAdminEnv).mockReturnValue(false)
+    vi.mocked(hasSupabaseAdminEnv).mockReturnValue(true)
+    vi.mocked(createAdminClient).mockReturnValue(createSupabaseMock(() => ({ data: null, error: null })) as any)
     vi.mocked(isUniqueSelfServePlanPrice).mockReturnValue(true)
     // Default: the customer has NO live subscription, so create-subscription proceeds
     // to mint the first one. Tests exercising a plan change override this.

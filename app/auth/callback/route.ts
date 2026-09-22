@@ -1,3 +1,5 @@
+import { createAdminClient, hasSupabaseAdminEnv } from '../../../utils/supabase/admin'
+import { getOwnerShopifyBillingContext } from '../../../lib/server/shopify-billing'
 import { NextResponse, after } from 'next/server'
 import { createClient } from '../../../utils/supabase/server'
 import { cookies } from 'next/headers'
@@ -65,9 +67,12 @@ export async function GET(request: Request) {
     // Persist the plan explicitly selected during onboarding before redirecting.
     // Free becomes a durable account state; paid choices start their no-card trial.
     // Plan-less OAuth accounts still return to onboarding instead of being defaulted.
+    const shopifyBilling = user && hasSupabaseAdminEnv()
+      ? await getOwnerShopifyBillingContext(createAdminClient(), user.id, cookieStore.get('shopify_pending_shop')?.value)
+      : null
     const planMeta = user?.user_metadata?.plan
     const chosePlan = isSelectablePlan(planMeta)
-    if (isNew && user && chosePlan) {
+    if (isNew && user && chosePlan && !shopifyBilling) {
       await ensureBillingSeeded(user.id, planMeta)
     }
 
@@ -93,7 +98,7 @@ export async function GET(request: Request) {
     // to pick one, not to a silently-seeded default trial. This is intentionally not
     // limited to the welcome window: a user may abandon OAuth and return days later.
     // Existing billing state remains the source of truth and passes through to `next`.
-    if (user && !chosePlan && !(await hasBillingAccount(user.id))) {
+    if (user && !shopifyBilling && !chosePlan && !(await hasBillingAccount(user.id))) {
       const onboardUrl = new URL('/onboard', requestUrl.origin)
       if (next && next !== '/') onboardUrl.searchParams.set('next', next)
       return NextResponse.redirect(onboardUrl)

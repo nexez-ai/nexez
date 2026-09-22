@@ -10,7 +10,7 @@ import {
   isEntitlementAllocationRetry,
 } from '../../../../lib/entitlement-allocation-error'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
-import { getOwnerShopifyBillingContext } from '../../../../lib/server/shopify-billing'
+import { getOwnerShopifyBillingContext, type ShopifyBillingContext } from '../../../../lib/server/shopify-billing'
 
 const TRIAL_DAYS = 7
 
@@ -22,7 +22,8 @@ const TRIAL_DAYS = 7
  * on the billing dashboard.
  */
 export async function GET() {
-  const supabase = createClient(await cookies())
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -33,7 +34,12 @@ export async function GET() {
   }
 
   const admin = createAdminClient()
-  const shopifyBilling = await getOwnerShopifyBillingContext(admin, user.id)
+  let shopifyBilling: ShopifyBillingContext | null
+  try {
+    shopifyBilling = await getOwnerShopifyBillingContext(admin, user.id, cookieStore.get('shopify_pending_shop')?.value)
+  } catch {
+    return NextResponse.json({ error: 'Could not verify billing ownership. Please try again shortly.' }, { status: 503 })
+  }
   if (shopifyBilling) {
     return NextResponse.json({
       hasBilling: true,
@@ -67,7 +73,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const rateLimited = await enforceRateLimit(request, 'billing-start-trial', 12, 60_000, { failClosed: true })
   if (rateLimited) return rateLimited
-  const supabase = createClient(await cookies())
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -87,7 +94,12 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
-  const shopifyBilling = await getOwnerShopifyBillingContext(admin, user.id)
+  let shopifyBilling: ShopifyBillingContext | null
+  try {
+    shopifyBilling = await getOwnerShopifyBillingContext(admin, user.id, cookieStore.get('shopify_pending_shop')?.value)
+  } catch {
+    return NextResponse.json({ error: 'Could not verify billing ownership. Please try again shortly.' }, { status: 503 })
+  }
   if (shopifyBilling) {
     return NextResponse.json(
       {

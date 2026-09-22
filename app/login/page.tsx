@@ -5,6 +5,7 @@ import { AdminLoginForm } from '../../components/admin/AdminLoginForm'
 import { createClient } from '../../utils/supabase/server'
 import { safeNextPath } from '../../lib/safe-redirect'
 import { isAdminHost } from '../../lib/site'
+import { readPendingShop } from '../../lib/server/shopify'
 import { isPlatformAdmin } from '../../lib/server/plan'
 
 type LoginPageProps = {
@@ -28,6 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const initialMode = toLoginMode(firstValue(params?.mode))
   const nextPath = firstValue(params?.next)
   const host = (await headers()).get('host')
+  const shopifyShop = readPendingShop((await cookies()).get('shopify_pending_shop')?.value)
 
   if (isAdminHost(host)) {
     const supabase = createClient(await cookies(), host)
@@ -58,13 +60,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     if (user) redirect(safeNextPath(nextPath))
   }
 
-  // Every new signup goes through onboarding so Free or a paid trial is an explicit
-  // choice. A direct /login?mode=signup link (or LoginForm's "Create an account")
-  // lands on /onboard, carrying any `next`.
-  if (initialMode === 'signup') {
+  // Direct Nexez signups choose Free or a paid trial during onboarding. A
+  // verified Shopify handoff stays here so app billing remains in Shopify.
+  if (initialMode === 'signup' && !shopifyShop) {
     const safe = safeNextPath(nextPath, '')
     redirect(safe ? `/onboard?next=${encodeURIComponent(safe)}` : '/onboard')
   }
 
-  return <LoginForm initialMode={initialMode} nextPath={nextPath} />
+  return <LoginForm initialMode={initialMode} nextPath={shopifyShop ? '/dashboard/shopify' : nextPath} shopifyShop={shopifyShop} />
 }
