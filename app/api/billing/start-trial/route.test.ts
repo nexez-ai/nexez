@@ -7,7 +7,7 @@ const refs = vi.hoisted(() => ({
 }))
 
 const rateLimitRef = vi.hoisted(() => ({ response: null as NextResponse | null }))
-vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({})) }))
+vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }))
 vi.mock('../../../../lib/rate-limit', () => ({
   enforceRateLimit: vi.fn(async () => rateLimitRef.response),
 }))

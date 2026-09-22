@@ -1,3 +1,4 @@
+import { rememberShopifyBillingOwner } from '../../../../lib/server/shopify-billing'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
@@ -43,14 +44,21 @@ export async function GET(request: Request) {
     maxAge: 60 * 60,
   })
 
-  let signedIn = false
+  let ownerId: string | null = null
   try {
     const { data } = await createClient(jar).auth.getUser()
-    signedIn = Boolean(data.user)
+    ownerId = data.user?.id ?? null
   } catch {
     /* continue to sign in */
   }
-  const destination = signedIn ? '/dashboard/shopify' : '/login?next=/dashboard/shopify'
+  if (ownerId) {
+    try {
+      await rememberShopifyBillingOwner(createAdminClient(), ownerId)
+    } catch {
+      return NextResponse.json({ error: 'Could not prepare Shopify billing. Reopen the app in Shopify and try again.' }, { status: 503 })
+    }
+  }
+  const destination = ownerId ? '/dashboard/shopify' : '/login?next=/dashboard/shopify'
   const response = NextResponse.redirect(appUrl(destination), 302)
   response.headers.set('cache-control', 'no-store')
   response.headers.set('referrer-policy', 'no-referrer')

@@ -1,3 +1,4 @@
+vi.mock('../../../../lib/server/shopify-billing', () => ({ rememberShopifyBillingOwner: vi.fn(async () => undefined) }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const jar = { set: vi.fn(), get: vi.fn(), delete: vi.fn() }

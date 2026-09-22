@@ -59,10 +59,13 @@ export default async function ShopifyLinkPage() {
             No pending Shopify connection. Start the install from your Shopify admin under Apps, then Nexez Agent-Ready.
         </p>
       ) : listings.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--fg-muted)]">
-          Create a listing first, then come back here to connect{' '}
-          <span className="font-medium text-[var(--fg)]">{shop}</span>.
-        </p>
+        <div className="mt-4 space-y-4">
+          <p className="text-sm text-[var(--fg-muted)]">
+            Create a listing first, then return here to connect <span className="font-medium text-[var(--fg)]">{shop}</span>.
+            Your app plan and payments stay in Shopify.
+          </p>
+          <a href="/create" className="btn-primary inline-flex px-5 py-3">Create your first listing</a>
+        </div>
       ) : (
         <>
           <p className="mt-4 text-sm text-[var(--fg-muted)]">

@@ -12,6 +12,8 @@ submitted to Shopify. Replace every angle-bracket placeholder before submission.
 - Partner Dashboard automated checks and mandatory-webhook tests pass.
 - A fresh install, uninstall, and reinstall pass on a development store.
 - Reviewer credentials below are tested in a private browser window.
+- A fresh account created from the Shopify handoff passes the billing checks below,
+  including email confirmation in a different browser.
 - The exact prepared listing is visible to the reviewer account and has no active
   Shopify store connection before submission.
 - The embedded app has been opened on the review store after the production
@@ -87,6 +89,41 @@ The review recording must show this journey through a test order, not stop at
 the product data feed. Show the source store domain at the catalog, product,
 cart, checkout, and Shopify order confirmation steps. Use a separate rehearsal
 listing so the prepared reviewer listing remains available for Shopify's store.
+
+## Billing regression checks
+
+Repeat these checks after the production deployment, using a development store
+and a separate rehearsal account. Keep the prepared reviewer listing unbound.
+
+1. Install the app while signed out of Nexez, open it in Shopify admin, and
+   click `Continue to Nexez`.
+2. Choose `Start free` or `Create an account`. Confirm signup explains Shopify
+   billing and offers no Nexez paid-plan picker, card form, or Stripe Connect setup.
+3. Create a fresh account and confirm its email in a different browser. Sign in
+   there and open `/dashboard/billing?plan=scale`. Confirm the page still says
+   `Your app plan is managed in Shopify` and asks you to connect the store.
+4. Reopen the app from Shopify in that browser and continue to Nexez. If the
+   account has no listing, use `Create your first listing`, then return to
+   `/dashboard/shopify` to finish linking the rehearsal listing.
+5. Open `/onboard` and `/dashboard/billing?plan=scale` directly. Both must keep
+   the account in the Shopify flow. The billing page must show only the Shopify
+   billing panel, with no Nexez subscription checkout or payout setup.
+6. Click `Manage plan in Shopify` and verify the destination is Shopify App
+   Pricing for the connected store. Do not approve a real paid charge.
+7. Uninstall the rehearsal store's app and sign in to Nexez in a fresh browser.
+   Billing must still ask you to reconnect Shopify, without offering Stripe.
+8. Reinstall and explicitly reconnect the rehearsal listing. Confirm Shopify
+   plan management is available again.
+
+The automated regression suite also posts directly to the subscription, hosted
+checkout, customer portal, trial, and Connect endpoints. It verifies they refuse
+Stripe access both before linking and after the handoff cookie is gone, and that
+an unavailable billing store does not permit payment setup. An ordinary Nexez
+account without Shopify provenance retains the direct billing flow.
+
+Record the fresh-account and direct-billing-link checks as additional evidence
+for requirement 1.2.1. Keep the earlier catalog and customer checkout walkthrough
+available because it covers different review requirements.
 
 ## Important behavior for reviewers
 

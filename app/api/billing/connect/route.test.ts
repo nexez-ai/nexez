@@ -1,3 +1,4 @@
+vi.mock('../../../../lib/server/shopify-billing', () => ({ getOwnerShopifyBillingContext: vi.fn(async () => null) }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextResponse } from 'next/server'
 import { createSupabaseMock, type QueryContext } from '../../../../test/supabase-mock'
@@ -16,7 +17,7 @@ vi.mock('stripe', () => ({
   },
 }))
 const rateLimitRef = vi.hoisted(() => ({ response: null as NextResponse | null }))
-vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({})) }))
+vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }))
 vi.mock('../../../../lib/rate-limit', () => ({
   enforceRateLimit: vi.fn(async () => rateLimitRef.response),
 }))

@@ -1,3 +1,4 @@
+import { getOwnerShopifyBillingContext } from '../../../../lib/server/shopify-billing'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '../../../../utils/supabase/server'
@@ -28,10 +29,6 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const secret = process.env.STRIPE_SECRET_KEY
-  if (!secret) {
-    return NextResponse.json({ error: 'Stripe not configured for Connect.' }, { status: 412 })
-  }
   // billing_subscriptions is server-managed: RLS lets owners SELECT but NOT
   // insert/update, so the account id + status MUST be persisted with the
   // service-role client (same pattern as the webhook + portal route). Without it
@@ -41,6 +38,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Server is not configured to persist the Connect account.' }, { status: 500 })
   }
   const admin = createAdminClient()
+  try {
+    const shopifyBilling = await getOwnerShopifyBillingContext(admin, user.id, cookieStore.get('shopify_pending_shop')?.value)
+    if (shopifyBilling) return NextResponse.json({
+      error: 'Shopify handles checkout and payouts for this account. Continue in Shopify.',
+      provider: 'shopify', pricingUrl: shopifyBilling.pricingUrl,
+    }, { status: 409 })
+  } catch {
+    return NextResponse.json({ error: 'Could not verify billing ownership. Please try again shortly.' }, { status: 503 })
+  }
+  const secret = process.env.STRIPE_SECRET_KEY
+  if (!secret) {
+    return NextResponse.json({ error: 'Stripe not configured for Connect.' }, { status: 412 })
+  }
   const stripe = new Stripe(secret)
 
   // Read through the service role before any Stripe side effect. An unreadable
