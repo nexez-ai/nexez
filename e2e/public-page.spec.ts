@@ -392,7 +392,17 @@ test.describe('simulator LLM-Enhanced (seeded llm_opt_in page)', () => {
     await expect(page.getByRole('heading', { name: 'Analytics', exact: true })).toBeVisible({ timeout: 15000 })
 
     await page.goto('/dashboard/billing', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('heading', { name: 'Your plan & payouts', exact: true })).toBeVisible({ timeout: 15000 })
+    if (process.env.TEST_LIVE || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      await expect(page.getByRole('heading', { name: 'Your plan & payouts', exact: true })).toBeVisible({ timeout: 15000 })
+    } else {
+      // CI deliberately has no service-role credential. Billing must fail closed
+      // when it cannot verify Shopify ownership, instead of exposing Stripe UI.
+      await expect(page.getByText('Billing is temporarily unavailable. Please try again shortly.', { exact: true })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Your plan & payouts', exact: true })).toHaveCount(0)
+      const portal = await page.request.post('/api/billing/portal')
+      expect(portal.status()).toBe(503)
+      expect(await portal.json()).toMatchObject({ error: 'Billing ownership verification is unavailable. Please try again shortly.' })
+    }
 
     await page.goto('/dashboard/negotiations', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Negotiations', exact: true })).toBeVisible({ timeout: 15000 })
