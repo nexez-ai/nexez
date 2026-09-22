@@ -189,7 +189,7 @@ begin
   assert (public.study_run_status('test-v3')->>'researchProtocolVersion')::integer=3;
   begin update public.study_runs set research_protocol_version=3 where cohort='test-quality';
     raise exception 'protocol 2 relabeled'; exception when raise_exception then assert sqlerrm='study_protocol_frozen'; end;
-  begin insert into public.study_runs(cohort,research_protocol_version) values('test-v4',4);
+  begin insert into public.study_runs(cohort,research_protocol_version) values('test-unknown-protocol',5);
     raise exception 'unknown protocol accepted'; exception when check_violation then null; end;
   assert public.dispatch_readiness_study('test-v3')='dispatched';
 end $$;
@@ -210,6 +210,42 @@ begin
 end $$;
 reset role;
 do $$ begin assert public.dispatch_readiness_study('test-v3')='inactive'; end $$;
+
+-- Protocol 4 must not relabel or consume any frozen protocol-3 observations.
+insert into public.study_runs(cohort,research_protocol_version) values('test-v4-defaults',4);
+insert into public.study_runs(cohort,target_successes,success_limit,research_protocol_version)
+  values('test-v4',60000,2,4);
+insert into public.study_run_targets(cohort,domain_key,url,vertical,region,source_ref,sample_rank)
+  select 'test-v4','v4target'||i||'.com','https://v4target'||i||'.com','retail','CA','v4-'||i,
+    encode(sha256(convert_to(i::text,'UTF8')),'hex') from generate_series(1,3) i;
+update public.study_runs set source_frozen_at=clock_timestamp(),state='pilot' where cohort='test-v4';
+do $$
+begin
+  assert (select success_limit=500 and max_attempts=1500 and max_dispatches=500
+    and budget_cents=10000 and dispatch_cost_microusd=5000
+    from public.study_runs where cohort='test-v4-defaults'), 'v4 preserves all pilot and cost defaults';
+  assert (public.study_run_status('test-v4')->>'researchProtocolVersion')::integer=4;
+  begin update public.study_runs set research_protocol_version=4 where cohort='test-v3';
+    raise exception 'protocol 3 relabeled'; exception when raise_exception then assert sqlerrm='study_protocol_frozen'; end;
+  assert public.dispatch_readiness_study('test-v4')='dispatched';
+end $$;
+set local role service_role;
+do $$
+declare d uuid; t public.study_run_targets; good jsonb; i integer:=0;
+begin
+  select id into d from public.study_run_dispatches where cohort='test-v4';
+  assert (select count(*) from public.claim_study_run_batch('test-v4',d))=2, 'v4 cannot overshoot pilot';
+  good := '{"source":"study","scanner_version":2,"research_protocol_version":4,"score":50,"http_status":200}';
+  for t in select * from public.study_run_targets where cohort='test-v4' and state='running' loop
+    begin perform public.finish_study_run_target(t.cohort,t.id,t.lease_token,good||'{"research_protocol_version":3}',repeat('d',64),null,1,2,3);
+      raise exception 'protocol 3 observation accepted'; exception when raise_exception then assert sqlerrm='invalid_study_metrics'; end;
+    i:=i+1;
+    assert public.finish_study_run_target(t.cohort,t.id,t.lease_token,good,repeat(i::text,64),null,1,2,3);
+  end loop;
+  assert (select state='pilot_review' from public.study_runs where cohort='test-v4'), 'v4 automatic review stop';
+end $$;
+reset role;
+do $$ begin assert public.dispatch_readiness_study('test-v4')='inactive'; end $$;
 
 -- Exercise LIMIT under larger, multi-cohort plans as well as the tiny fixture.
 insert into public.study_runs(cohort,research_protocol_version) values('test-plan-padding',3);

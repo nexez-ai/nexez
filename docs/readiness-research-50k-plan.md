@@ -1,11 +1,11 @@
 # Website-readiness research execution plan
 
-Status: two production pilots have been retained for audit only. Protocol 2
-fixed HTML soft-404 discovery responses and unqualified HTTP 200 pages. Its
-500-result spot audit then found a titleless expired-domain renewal page that
-passed the readable-content gate. Protocol 3 excludes an explicit expiry notice
-at the start of a short page. Deploy and run a separate frozen protocol-3 pilot
-before scaling. Do not mix any prior pilot observations. See the private operations snapshot at
+Status: three production pilots have been retained for audit only. The
+protocol-3 pilot stopped automatically at 500, but its audit found accepted
+discontinued-hosting and recently registered domain holding pages. Protocol 4
+adds bounded exclusions for these templates without judging whether a readable
+business page is still trading. Deploy and run a separate frozen protocol-4
+pilot before scaling. Do not mix any prior pilot observations. See the private operations snapshot at
 `outputs/research-50k-2026-09-21/STATUS.md` for current counts and rollout state.
 
 ## Authorization and checkpoints
@@ -188,6 +188,28 @@ be rescanned under some query plans and exceed the requested row count. The
 local fixture reproduced a three-row claim for a two-row limit. Selection must
 be evaluated once before updating targets. The 500-success pilot review and
 every safety guard remain required.
+
+## Research protocol 4
+
+Protocol 4 retains the earlier readable-HTML, discovery-format, redirect and
+expiry exclusions. It additionally rejects short pages with a leading hosting
+notice that the website is no longer available or has been disabled, and short
+registrar pages with a leading recent-registration notice plus a domain-auction
+prompt, including an offer to use the domain as a future featured business.
+Unavailable hosting and unbound-domain notices are excluded, as are complete
+bodies containing only the audited cookie-consent or empty-cart UI templates.
+These templates cannot satisfy the 80-character readable-content rule by
+themselves. Matches are anchored and bounded to avoid excluding ordinary business
+prose about hosting support or domain registration. Legitimate short homepages
+and readable retirement statements are not automatically excluded: the study
+measures accessible website content, not verified trading status.
+
+The scorer remains version 2 and customer scanning is unchanged. The additive
+protocol migration changes no active target, attempt, dispatch, deadline or
+budget limit, and preserves the materialized batch selection. Freeze a new
+cohort using the original 75,000 candidates, ranks and selection seed, carry all
+prior pilot reservations forward, and retain the 500-success quality gate.
+Never resume, publish or relabel protocol-3 pilot results after this failed gate.
 
 ## Offline frame tools
 
