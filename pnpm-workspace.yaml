@@ -1,0 +1,8 @@
+# Keep this lockfile scoped to the web app, not independently released packages.
+packages:
+  - '.'
+
+overrides:
+  fast-uri: 3.1.7
+  hono: 4.13.8
+  qs: 6.16.0

@@ -1,9 +1,12 @@
 # Integration maintenance, September 21, 2026
 
 Scope: non-billing maintenance following the weekly integration review. Shopify
-billing and App Store remediation are being handled separately. This work does
-not submit a store build, deploy production, send a notification, change provider
-credentials, or enable dormant checkout capabilities.
+billing and App Store remediation are handled separately. The initial review was
+read-only, followed by approval to implement maintenance changes. On September 22
+UTC, the user also approved the security patches, merge, production deployment,
+authenticated A2A certification, and read-only Sentry alert verification. This
+does not authorize a store build, provider credential changes, or enabling dormant
+checkout capabilities.
 
 ## Changes
 
@@ -78,11 +81,23 @@ source-map verification, store metadata/privacy review, and the physical iOS and
 Android matrix in `apps/seller-mobile/RELEASE_CERTIFICATION.md`. A successful
 static web export is not device, authentication, push, or store certification.
 
-## Additional security finding, awaiting scope approval
+## Approved security patch follow-up
 
-The fresh production lockfile audit also flags Next.js 16.3.1, sharp below 0.35.4,
-and Hono below 4.13.5. Coordinate patching shared package files with the ongoing
-Shopify work. Do not run an indiscriminate audit fix.
+The user approved patching the runtime advisories. The branch incorporates merged
+Shopify PR #305 before the security changes. Next.js and its ESLint configuration
+move from 16.3.1 to 16.3.5, sharp from 0.35.3 to 0.35.4, and Hono from 4.13.3 to
+4.13.8. npm and pnpm both pin the patched Hono resolution; pnpm's root-only
+configuration explicitly excludes independently released mobile, plugin, and SDK
+packages from the web lockfile. Its additional stale `qs` and `fast-uri`
+resolutions are aligned to the already patched npm versions, 6.16.0 and 3.1.7.
+No indiscriminate audit fix was used.
+
+Both production lockfile audits report zero known vulnerabilities after the
+patches. The security follow-up passed 206 targeted tests across 27 files,
+TypeScript, scoped ESLint, prose/whitespace guards, and frozen pnpm lockfile
+validation. A local AVIF encode/decode round trip passed using sharp 0.35.4 and
+libheif 1.23.2. Fresh CI and exact-revision production certification remain
+required release gates; a dependency audit alone is not production certification.
 
 - [Next.js Windows-hosted RCE](https://github.com/advisories/GHSA-p293-qw3h-jr36):
   platform-specific; not evidence of a Windows deployment here.

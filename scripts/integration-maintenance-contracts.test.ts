@@ -4,6 +4,24 @@ import { describe, expect, it } from 'vitest'
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
 describe('integration release metadata contracts', () => {
+  it('keeps patched runtime dependencies aligned in both lockfiles', () => {
+    const manifest = JSON.parse(source('package.json'))
+    const lock = JSON.parse(source('package-lock.json'))
+    const pnpm = source('pnpm-lock.yaml')
+    expect(manifest.dependencies.next).toBe('16.3.5')
+    expect(manifest.devDependencies['eslint-config-next']).toBe('16.3.5')
+    expect(manifest.overrides.hono).toBe('4.13.8')
+    expect(source('pnpm-workspace.yaml')).toContain('hono: 4.13.8')
+    expect(source('pnpm-workspace.yaml')).toContain("  - '.'")
+    for (const [name, version] of Object.entries({ next: '16.3.5', sharp: '0.35.4', hono: '4.13.8', 'fast-uri': '3.1.7', qs: '6.16.0' })) {
+      expect(lock.packages[`node_modules/${name}`].version).toBe(version)
+      expect(pnpm.includes(`${name}@${version}`)).toBe(true)
+    }
+    for (const vulnerable of ['hono@4.13.3', 'hono: 4.13.3', 'sharp@0.35.3', 'next@16.3.1', 'fast-uri@3.1.5', 'qs@6.15.3']) {
+      expect(pnpm.includes(vulnerable), `Stale runtime dependency: ${vulnerable}`).toBe(false)
+    }
+  })
+
   it('keeps official JavaScript SDK pins and reported versions aligned', () => {
     for (const path of ['scripts/certify-a2a-sdk-interop.mjs', 'scripts/canary-a2a.mjs']) {
       expect(source(path)).toContain("const SDK_VERSION = '1.2.0'")
