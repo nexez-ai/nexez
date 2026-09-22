@@ -8,7 +8,7 @@ const page = {
   text: 'Acme Plumbing provides repairs and installation throughout our local service area. Contact our team to schedule a visit.',
 }
 
-describe('research protocol 3 content validation', () => {
+describe('research protocol 4 content validation', () => {
   it('keeps final-destination exclusions aligned with the source policy', () => {
     expect(RESEARCH_EXCLUDED_HOSTS).toEqual(EXCLUDED_HOSTS)
   })
@@ -52,5 +52,44 @@ describe('research protocol 3 content validation', () => {
   })
   it('does not reject ordinary business prose about domain renewal', () => {
     expect(researchPageFailure({ ...page, title: 'Domain renewal services', text: `${page.text} We help when domain registration has expired and explain your renewal options.` })).toBeNull()
+  })
+  it.each([
+    'This Townsquare Interactive website is no longer available. If you have any questions please contact our support team.',
+    'This website is no longer available. Please contact the hosting support team if you have questions.',
+    'This Example Hosting website has been disabled. Please contact the hosting support team for assistance.',
+    "Sorry, this website is temporarily unavailable. If you're the owner of this domain, contact your customer service representative to get your website back online.",
+  ])('rejects a leading discontinued-hosting notice', text => {
+    expect(researchPageFailure({ ...page, title: 'Website not available', text })).toBe('unavailable_page')
+  })
+  it.each(['', 'example.com '])('rejects a recently registered registrar placeholder', prefix => {
+    const text = `${prefix}has been recently registered with Namecheap. Want a domain name like this? Discover domains on auction now. See all auctions.`
+    expect(researchPageFailure({ ...page, title: '', text })).toBe('parked_domain')
+  })
+  it.each([
+    'Therapy for adults. Confidence in movement. Visit our clinic or phone our team for an appointment.',
+    'Nail appointments are available Monday through Saturday. Contact the salon to book. Gift certificates available.',
+    'Acme Hosting helps customers when their website is no longer available. Contact our team for support.',
+    'Our domain has been recently registered with Namecheap. We are a local plumbing business, not a domain auction.',
+    'Our retirement statement thanks every customer for many years of support. We have enjoyed serving the community.',
+  ])('preserves readable business pages without judging trading status', text => {
+    expect(researchPageFailure({ ...page, text })).toBeNull()
+  })
+  it('excludes a domain offered to a future business', () => {
+    expect(researchPageFailure({ ...page, text: 'Become a Featured Business on Example Directory and start using this domain today! Please email for more information.' })).toBe('parked_domain')
+  })
+  it('excludes the unbound-domain hosting control panel', () => {
+    expect(researchPageFailure({ ...page, text: 'Website not found Sorry, Please confirm that this domain name has been bound to your website. Powered by the hosting control panel.' })).toBe('unavailable_page')
+  })
+  it.each([
+    'This site uses cookies and similar technology (including Google Analytics and Meta Pixel) to understand site traffic. See our Privacy Policy for details. Got it',
+    'Collapse Menu Your cart is empty. Close Cart Checkout $0.00 Loading, please wait. View Cart 0 $0.00',
+  ])('does not qualify a body containing only UI boilerplate', text => {
+    expect(researchPageFailure({ ...page, text })).toBe('insufficient_content')
+    expect(researchPageFailure({ ...page, text: `${page.text} ${text}` })).toBeNull()
+    expect(researchPageFailure({ ...page, text: `${text} ${page.text}` })).toBeNull()
+  })
+  it('preserves useful business content alongside a new-site notice or empty blog', () => {
+    expect(researchPageFailure({ ...page, title: 'New site coming soon', text: `NEW SITE COMING SOON. ${page.text}` })).toBeNull()
+    expect(researchPageFailure({ ...page, text: `Nothing Found. ${page.text}` })).toBeNull()
   })
 })

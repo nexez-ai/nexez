@@ -1,5 +1,5 @@
 /** Research-only protocol. Customer scan scoring and behavior stay unchanged. */
-export const RESEARCH_PROTOCOL_VERSION = 3 as const
+export const RESEARCH_PROTOCOL_VERSION = 4 as const
 export const RESEARCH_MIN_VISIBLE_CHARS = 80
 
 // Mirrors the frozen source selector. A regression test guards policy drift.
@@ -53,9 +53,23 @@ export function researchPageFailure(input: {
     || (shortPage && /\b(?:this domain (?:name )?(?:is |may be )?(?:for sale|available for (?:sale|purchase))|buy this domain)\b/i.test(text))
     // Registrar renewal screens may omit a title and contain ample boilerplate.
     // Anchor the notice so an ordinary business FAQ about renewal still passes.
-    || (shortPage && /^(?:this domain(?: name)?|domain registration) (?:has expired|is expired)\b/i.test(text))) return 'parked_domain'
+    || (shortPage && /^(?:this domain(?: name)?|domain registration) (?:has expired|is expired)\b/i.test(text))
+    // A fresh registrar holding page is not an operating business homepage.
+    // Require both its leading notice and a specific domain-auction prompt.
+    || (shortPage && /^(?:\S{1,253}\s+)?has been recently registered with\b/i.test(text)
+      && /\b(?:want a domain name like this|discover domains on auction)\b/i.test(text))
+    || (shortPage && /^become a featured business on\b.{1,280}\band start using this domain today\b/i.test(text))) return 'parked_domain'
   if (/^(?:(?:error\s*)?404(?:\s*[-:|]\s*)?)?(?:page |website |site |account )?(?:not found|unavailable|suspended|coming soon|under construction)[!?.\s]*$/i.test(title)
-    || (shortPage && /\b(?:this (?:website|account) has been suspended|this website is currently unavailable)\b/i.test(text))) return 'unavailable_page'
+    || (shortPage && /\b(?:this (?:website|account) has been suspended|this website is currently unavailable)\b/i.test(text))
+    // Hosting providers may insert their name before the discontinued-site
+    // notice. Keep the leading match and provider-name length bounded.
+    || (shortPage && /^(?:sorry[,!.]?\s*)?(?:this|the) (?:[a-z0-9&'-]+ ){0,5}(?:website|site|account) (?:is (?:no longer available|temporarily unavailable|not (?:currently )?available)|has been (?:disabled|suspended|removed|deactivated))\b/i.test(text))
+    || (shortPage && /^website not found\b/i.test(text)
+      && /\bconfirm that this domain name has been bound to your website\b/i.test(text))) return 'unavailable_page'
+  // These complete bodies are UI boilerplate, not readable homepage content.
+  // Full-text anchors preserve a business page that also contains the controls.
+  if (/^This (?:site|website) uses cookies and similar technology\b[^.]{0,200}\.\s*See our Privacy Policy for details\.\s*Got it[.!]?$/i.test(text)
+    || /^(?:Collapse Menu\s+)?Your cart is empty\.\s+Close Cart\s+Checkout\s+[$€£]\s*0(?:[.,]00)?\s+Loading, please wait\.\s+View Cart\s+0\s+[$€£]\s*0(?:[.,]00)?$/i.test(text)) return 'insufficient_content'
   if (text.length < RESEARCH_MIN_VISIBLE_CHARS) return 'insufficient_content'
   return null
 }
