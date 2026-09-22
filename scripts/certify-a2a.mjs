@@ -16,6 +16,8 @@ const NONPRO_KEY = process.env.NEXEZ_A2A_CERT_NONPRO_API_KEY || ''
 const RELEASE_SECRET = process.env.NEXEZ_RELEASE_CERT_SECRET || ''
 const COMMIT_SHA = normalizeSha(process.env.NEXEZ_COMMIT_SHA || process.env.GITHUB_SHA)
 const TIMEOUT_MS = positiveNumber(process.env.NEXEZ_A2A_CERT_TIMEOUT_MS, 15_000)
+// Blocking tasks can use the route's full 60-second execution window.
+const BLOCKING_TIMEOUT_MS = positiveNumber(process.env.NEXEZ_A2A_CERT_BLOCKING_TIMEOUT_MS, 90_000)
 const WAIT_MS = positiveNumber(process.env.NEXEZ_A2A_CERT_WAIT_MS, process.env.GITHUB_ACTIONS ? 600_000 : 1)
 const POLL_MS = positiveNumber(process.env.NEXEZ_A2A_CERT_POLL_MS, 1_000)
 const SETTLE_MS = positiveNumber(process.env.NEXEZ_A2A_CERT_SETTLE_MS, 90_000)
@@ -444,15 +446,18 @@ async function postRpc(key, method, params, extraHeaders = {}) {
     ...(key ? { authorization: `Bearer ${key}` } : {}),
     ...extraHeaders,
   }
-  return rawRequest({ headers, body: JSON.stringify(rpcEnvelope(method, params)) })
+  const timeoutMs = method === 'SendMessage' && params?.configuration?.returnImmediately === false
+    ? BLOCKING_TIMEOUT_MS
+    : TIMEOUT_MS
+  return rawRequest({ headers, body: JSON.stringify(rpcEnvelope(method, params)) }, timeoutMs)
 }
 
-async function rawRequest({ headers, body }) {
+async function rawRequest({ headers, body }, timeoutMs = TIMEOUT_MS) {
   const response = await fetchWithTimeout(A2A_URL, {
     method: 'POST',
     headers,
     body,
-  })
+  }, timeoutMs)
   const text = await response.text()
   let parsed = null
   try { parsed = text ? JSON.parse(text) : null } catch {}
@@ -639,9 +644,9 @@ async function fetchJson(url) {
   try { return JSON.parse(text) } catch { throw new Error(`${url} did not return JSON`) }
 }
 
-async function fetchWithTimeout(url, init = {}) {
+async function fetchWithTimeout(url, init = {}, timeoutMs = TIMEOUT_MS) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
     return await fetch(url, {
       ...init,

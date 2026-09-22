@@ -58,7 +58,7 @@ type Check = {
   required: boolean
 }
 
-type HarnessOptions = { leakSecondary?: boolean }
+type HarnessOptions = { leakSecondary?: boolean; approvalDelayMs?: number }
 
 let closeServer: (() => Promise<void>) | null = null
 
@@ -149,6 +149,47 @@ describe('A2A production certification runner', () => {
     })
     expect(report.checks).toContainEqual(expect.objectContaining({
       id: 'owner-isolation',
+      status: 'fail',
+      required: true,
+    }))
+  }, 20_000)
+
+  it('allows blocking approval work to exceed the short request deadline', async () => {
+    const harness = await startHarness({ approvalDelayMs: 1_000 })
+    closeServer = harness.close
+    const outputDir = await mkdtemp(join(tmpdir(), 'nexez-a2a-cert-'))
+    const reportPath = join(outputDir, 'report.json')
+
+    const result = await runCertification(harness.base, reportPath, {
+      timeoutMs: 250,
+      blockingTimeoutMs: 3_000,
+    })
+
+    expect(result.code, result.output).toBe(0)
+    const report = JSON.parse(await readFile(reportPath, 'utf8'))
+    expect(report.checks).toContainEqual(expect.objectContaining({
+      id: 'approval-fail-closed',
+      status: 'pass',
+      required: true,
+    }))
+  }, 20_000)
+
+  it('still fails approval certification when the blocking deadline is exceeded', async () => {
+    const harness = await startHarness({ approvalDelayMs: 1_000 })
+    closeServer = harness.close
+    const outputDir = await mkdtemp(join(tmpdir(), 'nexez-a2a-cert-'))
+    const reportPath = join(outputDir, 'report.json')
+
+    const result = await runCertification(harness.base, reportPath, {
+      blockingTimeoutMs: 250,
+    })
+
+    expect(result.code, result.output).toBe(1)
+    const report = JSON.parse(await readFile(reportPath, 'utf8'))
+    expect(report.status).toBe('failed')
+    expect(report.promotionEligible).toBe(false)
+    expect(report.checks).toContainEqual(expect.objectContaining({
+      id: 'approval-fail-closed',
       status: 'fail',
       required: true,
     }))
@@ -296,6 +337,10 @@ async function startHarness(options: HarnessOptions = {}) {
       }
 
       const modes = asArray(asRecord(params.configuration).acceptedOutputModes).map(String)
+      if (text.includes('negotiation proposal') && options.approvalDelayMs) {
+        schedule(() => rpcSuccess(response, rpc.id ?? null, { task: tailorTask(record.task, modes) }), options.approvalDelayMs)
+        return
+      }
       return rpcSuccess(response, rpc.id ?? null, { task: tailorTask(record.task, modes) })
     }
 
@@ -476,7 +521,11 @@ function streamTask(response: ServerResponse, rpcId: unknown, record: TaskRecord
   flush()
 }
 
-async function runCertification(base: string, reportPath: string) {
+async function runCertification(
+  base: string,
+  reportPath: string,
+  options: { timeoutMs?: number; blockingTimeoutMs?: number } = {},
+) {
   const child = spawn(process.execPath, ['scripts/certify-a2a.mjs'], {
     cwd: process.cwd(),
     env: {
@@ -493,7 +542,8 @@ async function runCertification(base: string, reportPath: string) {
       NEXEZ_A2A_CERT_POLL_MS: '10',
       NEXEZ_A2A_CERT_SETTLE_MS: '2000',
       NEXEZ_A2A_CERT_STREAM_MS: '3000',
-      NEXEZ_A2A_CERT_TIMEOUT_MS: '2000',
+      NEXEZ_A2A_CERT_TIMEOUT_MS: String(options.timeoutMs ?? 2_000),
+      NEXEZ_A2A_CERT_BLOCKING_TIMEOUT_MS: String(options.blockingTimeoutMs ?? 2_000),
       NEXEZ_A2A_CERT_POST_CANCEL_OBSERVE_MS: '20',
       NEXEZ_A2A_CERT_REPORT_PATH: reportPath,
       NEXEZ_RELEASE_SOURCE: 'local',
