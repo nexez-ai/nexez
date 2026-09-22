@@ -171,14 +171,27 @@ describe('gatherSiteSignals', () => {
       '<html><head><title>Page not found</title></head><body>Sorry, this page does not exist.</body></html>',
       { headers: { 'Content-Type': 'text/html' } },
     ))
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 2 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 3 })
     if ('error' in output) throw new Error('Unexpected URL error')
     expect(output.signals.llmsTxtOk).toBe(false)
-    expect(output.researchQuality).toEqual({ protocolVersion: 2, failure: 'unavailable_page' })
+    expect(output.researchQuality).toEqual({ protocolVersion: 3, failure: 'unavailable_page' })
     const legacy = await gatherSiteSignals('acme.com', {})
     if ('error' in legacy) throw new Error('Unexpected URL error')
     expect(legacy.signals.llmsTxtOk).toBe(true)
     expect(legacy).not.toHaveProperty('researchQuality')
+  })
+
+  it('excludes readable expired-domain boilerplate only in research mode', async () => {
+    safeFetch.mockImplementation(async () => bodyResponse(
+      '<html><body>Domain registration has expired. Renewal instructions: sign in to your registrar account, open your domain list and choose Renew. Browse domain auctions and renewal help.</body></html>',
+      { headers: { 'Content-Type': 'text/html' } },
+    ))
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 3 })
+    if ('error' in output) throw new Error('Unexpected URL error')
+    expect(output.signals.status).toBe(200)
+    expect(output.researchQuality).toEqual({ protocolVersion: 3, failure: 'parked_domain' })
+    const customer = await gatherSiteSignals('acme.com', {})
+    expect(customer).not.toHaveProperty('researchQuality')
   })
 
   it('accepts readable research HTML and a short valid llms.txt without extra requests', async () => {
@@ -190,9 +203,9 @@ describe('gatherSiteSignals', () => {
       )
       return new Response('', { status: 404 })
     })
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 2 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 3 })
     if ('error' in output) throw new Error('Unexpected URL error')
-    expect(output.researchQuality).toEqual({ protocolVersion: 2, failure: null })
+    expect(output.researchQuality).toEqual({ protocolVersion: 3, failure: null })
     expect(output.signals.llmsTxtOk).toBe(true)
     expect(safeFetch).toHaveBeenCalledTimes(8)
   })
@@ -202,7 +215,7 @@ describe('gatherSiteSignals', () => {
       `<html><head><title>${'Business title '.repeat(20)}</title></head><body></body></html>`,
       { headers: { 'Content-Type': 'text/html' } },
     ))
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 2 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 3 })
     if ('error' in output) throw new Error('Unexpected URL error')
     expect(output.researchQuality?.failure).toBe('insufficient_content')
   })

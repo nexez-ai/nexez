@@ -1,5 +1,5 @@
 /** Research-only protocol. Customer scan scoring and behavior stay unchanged. */
-export const RESEARCH_PROTOCOL_VERSION = 2 as const
+export const RESEARCH_PROTOCOL_VERSION = 3 as const
 export const RESEARCH_MIN_VISIBLE_CHARS = 80
 
 // Mirrors the frozen source selector. A regression test guards policy drift.
@@ -50,7 +50,10 @@ export function researchPageFailure(input: {
   if (/^(?:just a moment(?:\.\.\.)?|attention required|security (?:check|verification)|verify (?:you are|you're) human)[!?.\s]*$/i.test(title)
     || (shortPage && /\b(?:checking (?:your )?browser|verify (?:that )?you are (?:a )?human|enable javascript and cookies to continue|performing security verification)\b/i.test(text))) return 'challenge_page'
   if (/\b(?:domain (?:name )?(?:is )?for sale|domain parked|parked domain)\b/i.test(title)
-    || (shortPage && /\b(?:this domain (?:name )?(?:is |may be )?(?:for sale|available for (?:sale|purchase))|buy this domain)\b/i.test(text))) return 'parked_domain'
+    || (shortPage && /\b(?:this domain (?:name )?(?:is |may be )?(?:for sale|available for (?:sale|purchase))|buy this domain)\b/i.test(text))
+    // Registrar renewal screens may omit a title and contain ample boilerplate.
+    // Anchor the notice so an ordinary business FAQ about renewal still passes.
+    || (shortPage && /^(?:this domain(?: name)?|domain registration) (?:has expired|is expired)\b/i.test(text))) return 'parked_domain'
   if (/^(?:(?:error\s*)?404(?:\s*[-:|]\s*)?)?(?:page |website |site |account )?(?:not found|unavailable|suspended|coming soon|under construction)[!?.\s]*$/i.test(title)
     || (shortPage && /\b(?:this (?:website|account) has been suspended|this website is currently unavailable)\b/i.test(text))) return 'unavailable_page'
   if (text.length < RESEARCH_MIN_VISIBLE_CHARS) return 'insufficient_content'
