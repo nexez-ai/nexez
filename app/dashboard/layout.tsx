@@ -1,3 +1,5 @@
+import { createAdminClient, hasSupabaseAdminEnv } from '../../utils/supabase/admin'
+import { getOwnerShopifyBillingContext } from '../../lib/server/shopify-billing'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../utils/supabase/server'
@@ -38,10 +40,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const resolved = await getOwnerEntitlements(supabase, user?.id)
     plan = resolved.planId
     entitlements = { planId: plan, features: resolved.features, limits: resolved.limits }
+    const shopifyBilling = user && hasSupabaseAdminEnv()
+      ? await getOwnerShopifyBillingContext(createAdminClient(), user.id, cookieStore.get('shopify_pending_shop')?.value)
+      : null
     // Backstop for delayed email confirmation: seed only a plan the user explicitly
     // selected. A plan-less account is routed back to onboarding instead of receiving
     // an implicit Pro trial. Existing billing rows (legacy, paused, or paid) are preserved.
-    if (plan === 'free' && user?.id) {
+    if (plan === 'free' && user?.id && !shopifyBilling) {
       const planMeta = user.user_metadata?.plan
       const hasBilling = await hasBillingAccount(user.id)
       if (!hasBilling && !isSelectablePlan(planMeta)) {

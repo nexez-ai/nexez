@@ -1,3 +1,6 @@
+vi.mock('../../utils/supabase/admin', () => ({ hasSupabaseAdminEnv: () => true, createAdminClient: () => ({}) }))
+vi.mock('../../lib/server/shopify-billing', () => ({ getOwnerShopifyBillingContext: vi.fn(async () => null) }))
+import { getOwnerShopifyBillingContext } from '../../lib/server/shopify-billing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const refs = vi.hoisted(() => ({
@@ -14,7 +17,7 @@ const redirect = vi.hoisted(() => vi.fn((location: string) => {
   throw new Error(`NEXT_REDIRECT:${location}`)
 }))
 
-vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({})) }))
+vi.mock('next/headers', () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }))
 vi.mock('next/navigation', () => ({ redirect }))
 vi.mock('../../utils/supabase/server', () => ({
   createClient: () => ({ auth: { getUser: async () => ({ data: { user: refs.user }, error: refs.authError }) } }),
@@ -42,6 +45,7 @@ import DashboardLayout from './layout'
 describe('DashboardLayout plan gate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getOwnerShopifyBillingContext).mockResolvedValue(null)
     refs.user = { id: 'user-1', user_metadata: {} }
     refs.authError = null
     refs.plan = 'free'
@@ -75,6 +79,17 @@ describe('DashboardLayout plan gate', () => {
   it('preserves existing billing state, including non-conferring legacy or paused rows', async () => {
     trial.hasBilling.mockResolvedValue(true)
 
+    await expect(DashboardLayout({ children: null })).resolves.toBeTruthy()
+    expect(trial.ensure).not.toHaveBeenCalled()
+    expect(redirect).not.toHaveBeenCalled()
+  })
+
+  it('keeps a Shopify merchant in the linking flow without starting an ordinary trial', async () => {
+    refs.user.user_metadata = { plan: 'pro' }
+    vi.mocked(getOwnerShopifyBillingContext).mockResolvedValue({
+      provider: 'shopify', shop: 'review.myshopify.com', pricingUrl: '/dashboard/shopify',
+      planHandle: null, status: 'connection_required', verifiedAt: null,
+    })
     await expect(DashboardLayout({ children: null })).resolves.toBeTruthy()
     expect(trial.ensure).not.toHaveBeenCalled()
     expect(redirect).not.toHaveBeenCalled()

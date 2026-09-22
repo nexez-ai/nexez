@@ -1,3 +1,4 @@
+vi.mock('../../../../lib/server/shopify-billing', () => ({ rememberShopifyBillingOwner: vi.fn(async () => undefined) }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
@@ -37,6 +38,7 @@ vi.mock('../../../../utils/supabase/admin', () => ({
 vi.mock('../../../../lib/server/secret-crypto', () => ({ hasSecretCryptoKey: () => h.cryptoConfigured }))
 
 import { GET } from './route'
+import { rememberShopifyBillingOwner } from '../../../../lib/server/shopify-billing'
 
 const request = () => new Request(
   'https://app.nexez.ai/api/shopify/callback?shop=demo.myshopify.com&code=code-1&state=state-1&hmac=ok',
@@ -99,5 +101,13 @@ describe('GET /api/shopify/callback', () => {
     const response = await GET(request())
     expect(response.status).toBe(502)
     expect(h.upsert).not.toHaveBeenCalled()
+  })
+
+  it('keeps the merchant out of onboarding when Shopify billing ownership cannot be saved', async () => {
+    vi.mocked(rememberShopifyBillingOwner).mockRejectedValueOnce(new Error('database unavailable'))
+    const response = await GET(request())
+    expect(response.status).toBe(503)
+    expect(response.headers.get('location')).toBeNull()
+    expect(h.setCookie).not.toHaveBeenCalled()
   })
 })

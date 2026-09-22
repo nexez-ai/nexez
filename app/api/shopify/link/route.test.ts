@@ -74,6 +74,7 @@ vi.mock('../../../../lib/server/shopify-channel', () => ({
   })),
 }))
 vi.mock('../../../../lib/server/shopify-billing', () => ({
+  rememberShopifyBillingOwner: vi.fn(async () => undefined),
   shopifyPartnerBillingConfigured: vi.fn(() => false),
   verifyShopifyBilling: vi.fn(),
 }))
@@ -106,6 +107,7 @@ import {
 } from '../../../../lib/server/shopify-install'
 import { syncPageIntegration } from '../../../../lib/server/integration-sync'
 import { ownerAllows } from '../../../../lib/server/plan'
+import { rememberShopifyBillingOwner } from '../../../../lib/server/shopify-billing'
 
 const post = (body: unknown = { pageId: 'p1' }) =>
   POST(new Request('https://app.nexez.ai/api/shopify/link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
@@ -163,6 +165,12 @@ describe('POST /api/shopify/link', () => {
     state.access = null
     expect((await post()).status).toBe(403)
     expect(updateSpy).not.toHaveBeenCalled()
+  })
+  it('preserves the pending connection and mapping if billing ownership cannot be saved', async () => {
+    vi.mocked(rememberShopifyBillingOwner).mockRejectedValueOnce(new Error('database unavailable'))
+    expect((await post()).status).toBe(503)
+    expect(beginShopifyMappingChange).not.toHaveBeenCalled()
+    expect(deletePendingCookie).not.toHaveBeenCalled()
   })
   it('links owner_id + page_id on success', async () => {
     const res = await post({ pageId: 'p1' })

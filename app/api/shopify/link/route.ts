@@ -15,7 +15,7 @@ import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { createClient } from '../../../../utils/supabase/server'
 import { requirePageAccess } from '../../../../lib/server/require-page-access'
 import { ensureShopifySalesChannel } from '../../../../lib/server/shopify-channel'
-import { shopifyPartnerBillingConfigured, verifyShopifyBilling } from '../../../../lib/server/shopify-billing'
+import { rememberShopifyBillingOwner, shopifyPartnerBillingConfigured, verifyShopifyBilling } from '../../../../lib/server/shopify-billing'
 
 /**
  * Link the just-installed Shopify shop to one of the signed-in owner's listings.
@@ -82,6 +82,8 @@ export async function POST(request: Request) {
   let lease: Awaited<ReturnType<typeof beginShopifyMappingChange>> = null
   let mapping: Awaited<ReturnType<typeof finishShopifyRelink>>
   try {
+    // Retain billing origin before the mapping changes or its handoff cookie is cleared.
+    await rememberShopifyBillingOwner(admin, access.ownerId)
     lease = await beginShopifyMappingChange(admin, {
       shop,
       kind: 'relink',

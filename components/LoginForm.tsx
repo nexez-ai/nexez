@@ -85,7 +85,7 @@ const meshCrossEdges = meshCrossLinks.map(([a, b]) => ({
   y2: meshNodes[b].y,
 }))
 
-export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: LoginMode; nextPath?: string }) {
+export function LoginForm({ initialMode = 'signin', nextPath, shopifyShop }: { initialMode?: LoginMode; nextPath?: string; shopifyShop?: string | null }) {
   const [hydrated, setHydrated] = useState(false)
   const [mode, setMode] = useState<LoginMode>(initialMode)
   const [fullName, setFullName] = useState('')
@@ -105,7 +105,9 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
   const [messageTone, setMessageTone] = useState<'error' | 'info'>('info')
 
   const strength = useMemo(() => scorePassword(password), [password])
-  const onboardingHref = nextPath ? `/onboard?next=${encodeURIComponent(nextPath)}` : '/onboard'
+  const onboardingHref = shopifyShop
+    ? '/login?mode=signup&next=%2Fdashboard%2Fshopify'
+    : nextPath ? `/onboard?next=${encodeURIComponent(nextPath)}` : '/onboard'
 
   useEffect(() => {
     setHydrated(true)
@@ -205,12 +207,21 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
       if (mode === 'signin') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (error) return setError(error.message)
+      } else if (shopifyShop) {
+        const response = await fetch('/api/shopify/signup', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), password, fullName: fullName.trim(), company: company.trim(), industry: industry || null }),
+        })
+        const result = await response.json()
+        if (!response.ok) return setError(result.error || 'Could not create your Shopify-connected account.')
+        if (result.needsEmailConfirm) return setInfo('Account created. Check your email to confirm, then connect your Shopify store. App billing stays in Shopify.')
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNextPath(nextPath))}`,
             data: {
               full_name: fullName.trim(),
               company: company.trim(),
@@ -226,6 +237,8 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
 
       const next = safeNextPath(new URLSearchParams(window.location.search).get('next') || nextPath)
       window.location.href = next
+    } catch {
+      setError('Could not complete account access. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -285,7 +298,9 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
   const title =
     mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create your Nexez workspace' : 'Reset your password'
   const subtitle =
-    mode === 'signin'
+    shopifyShop && mode !== 'reset'
+      ? `Connect ${shopifyShop}. Choose and manage your app plan in Shopify. No separate Nexez subscription or payment setup is required.`
+      : mode === 'signin'
       ? 'Sign in to continue managing your agent-ready business layer.'
       : mode === 'signup'
         ? 'Launch a structured presence AI agents can understand, recommend, and act on.'
@@ -303,9 +318,9 @@ export function LoginForm({ initialMode = 'signin', nextPath }: { initialMode?: 
             <span>Nexez</span>
           </a>
           <nav className="nx-auth-nav" aria-label="Login links">
-            <a href="/pricing" className="nx-auth-link">
+            {!shopifyShop && <a href="/pricing" className="nx-auth-link">
               Pricing
-            </a>
+            </a>}
             <a href="/simulator" className="nx-auth-link">
               Simulator
             </a>

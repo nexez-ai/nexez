@@ -75,7 +75,7 @@ describe('Shopify App Pricing verification', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('https://partners.shopify.com/123/api/2026-07/graphql.json')
   })
 
-  it('refuses to overwrite an existing direct Stripe subscription', async () => {
+  it.each(['paid', 'shopify'])('refuses to overwrite a live Stripe subscription with %s origin', async (origin) => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(Response.json({ data: { shop: { id: 'gid://shopify/Shop/1' } } }))
       .mockResolvedValueOnce(Response.json({
@@ -93,7 +93,7 @@ describe('Shopify App Pricing verification', () => {
       owner_id: 'owner-1',
       stripe_subscription_id: 'sub_123',
       status: 'active',
-      account_origin: 'paid',
+      account_origin: origin,
     })
 
     await expect(verifyShopifyBilling(

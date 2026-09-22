@@ -27,10 +27,16 @@ export async function POST(request: Request) {
     return NextResponse.redirect(appUrl('/login?next=/dashboard/billing'), 303)
   }
 
-  if (hasSupabaseAdminEnv()) {
-    const shopifyBilling = await getOwnerShopifyBillingContext(createAdminClient(), user.id)
-    if (shopifyBilling) return NextResponse.redirect(shopifyBilling.pricingUrl, 303)
+  if (!hasSupabaseAdminEnv()) {
+    return NextResponse.json({ error: 'Billing ownership verification is unavailable. Please try again shortly.' }, { status: 503 })
   }
+  try {
+    const shopifyBilling = await getOwnerShopifyBillingContext(createAdminClient(), user.id, cookieStore.get('shopify_pending_shop')?.value)
+    if (shopifyBilling) return NextResponse.redirect(shopifyBilling.pricingUrl, 303)
+  } catch {
+    return NextResponse.json({ error: 'Could not verify billing ownership. Please try again shortly.' }, { status: 503 })
+  }
+
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.redirect(appUrl('/dashboard/billing?setup=stripe'), 303)
   }

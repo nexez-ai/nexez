@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { ShopifyBillingPanel } from '../../../components/billing/ShopifyBillingPanel'
 import { cookies } from 'next/headers'
 import { AgentPage, OWNER_PAGE_SELECT, getOfferCount } from '../../../lib/agent-page'
 import { billingPlans, getPlanLimits } from '../../../lib/billing'
@@ -47,6 +48,14 @@ export default async function BillingPage({ searchParams }: BillingProps) {
     )
   }
 
+  const admin = hasSupabaseAdminEnv() ? createAdminClient() : null
+  if (!admin) {
+    return <main className="p-8">Billing is temporarily unavailable. Please try again shortly.</main>
+  }
+  const shopifyBilling = await getOwnerShopifyBillingContext(admin, user.id, cookieStore.get('shopify_pending_shop')?.value)
+
+  if (shopifyBilling) return <ShopifyBillingPanel billing={shopifyBilling} />
+
   const { data: pages } = await supabase
     .from('pages')
     .select(OWNER_PAGE_SELECT)
@@ -58,11 +67,6 @@ export default async function BillingPage({ searchParams }: BillingProps) {
     .select('*')
     .eq('owner_id', user.id)
     .maybeSingle<BillingSubscription>()
-
-  const admin = hasSupabaseAdminEnv() ? createAdminClient() : null
-  const shopifyBilling = admin
-    ? await getOwnerShopifyBillingContext(admin, user.id)
-    : null
 
   // Canonical trial/paused lifecycle (trial-expiry aware) for the banner + active-plan
   // resolution. Days left is rounded up so "1 day left" shows on the final day.
@@ -211,7 +215,7 @@ export default async function BillingPage({ searchParams }: BillingProps) {
             </div>
             <h1 className="mt-1 text-4xl font-semibold tracking-[-1.5px]">Your plan &amp; payouts</h1>
           </div>
-          <a href={shopifyBilling?.pricingUrl || '/pricing'} target={shopifyBilling ? '_top' : undefined} className="rounded-2xl border border-white/15 px-5 py-2 text-sm hover:bg-white/5 transition">
+          <a href="/pricing" className="rounded-2xl border border-white/15 px-5 py-2 text-sm hover:bg-white/5 transition">
             Compare plans
           </a>
         </header>

@@ -52,8 +52,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    if (hasSupabaseAdminEnv()) {
-      const shopifyBilling = await getOwnerShopifyBillingContext(createAdminClient(), user.id)
+    if (!hasSupabaseAdminEnv()) {
+      return NextResponse.json({ error: 'Billing ownership verification is unavailable. Please try again shortly.' }, { status: 503 })
+    }
+    try {
+      const shopifyBilling = await getOwnerShopifyBillingContext(createAdminClient(), user.id, cookieStore.get('shopify_pending_shop')?.value)
       if (shopifyBilling) {
         return NextResponse.json(
           {
@@ -64,6 +67,8 @@ export async function POST(request: Request) {
           { status: 409 },
         )
       }
+    } catch {
+      return NextResponse.json({ error: 'Could not verify billing ownership. Please try again shortly.' }, { status: 503 })
     }
 
     const priceId = getPlanPriceId(plan)
