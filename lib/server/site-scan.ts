@@ -2,7 +2,7 @@ import 'server-only'
 import { getImportUrlError, getResolvedImportUrlError, safeFetch } from '../importer'
 import { parseRobotsForAgentBots, type AgentBot, type CrawlabilitySignals } from '../crawlability'
 import { readBodyCapped } from './read-body-capped'
-import { isResearchLlmsText, researchPageFailure, type ResearchQuality } from './research-quality'
+import { isResearchLlmsText, researchPageFailure, RESEARCH_PROTOCOL_VERSION, type ResearchQuality } from './research-quality'
 
 export { readBodyCapped } from './read-body-capped'
 
@@ -196,7 +196,7 @@ export type SiteScanOptions = {
   beforeRequest?: (url: string) => Promise<boolean>
   onBodyBytes?: (bytes: number) => void
   /** Opt-in research validation, never enabled by customer scan callers. */
-  researchProtocolVersion?: 2
+  researchProtocolVersion?: typeof RESEARCH_PROTOCOL_VERSION
 }
 
 function scanFetch(url: string, init: RequestInit, options: SiteScanOptions) {
@@ -292,7 +292,7 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
     probeJson(`${origin}/.well-known/agent-card.json`, 'agent-card', options),
     probeJson(`${origin}/.well-known/mcp.json`, 'mcp', options),
     probeJson(`${origin}/openapi.json`, 'openapi', options),
-    fetchCapped(`${origin}/llms.txt`, JSON_BYTE_CAP, options, options.researchProtocolVersion === 2),
+    fetchCapped(`${origin}/llms.txt`, JSON_BYTE_CAP, options, options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION),
     fetchCapped(`${origin}/robots.txt`, ROBOTS_BYTE_CAP, options),
   ])
 
@@ -341,9 +341,9 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
     signals,
     robots,
     pageText: stripHtmlToText(html),
-    ...(options.researchProtocolVersion === 2 ? {
+    ...(options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION ? {
       researchQuality: {
-        protocolVersion: 2 as const,
+        protocolVersion: RESEARCH_PROTOCOL_VERSION,
         failure: researchPageFailure({
           origin, contentType: page.contentType, html,
           text: stripHtmlToText(html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, ''), 50_000),

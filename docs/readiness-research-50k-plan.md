@@ -1,10 +1,11 @@
 # Website-readiness research execution plan
 
-Status: the original production pilot started on 2026-09-21. Its observations
-are provisional. Pilot review found two measurement defects, now addressed in
-research protocol 2: HTML soft-404s could count as llms.txt, and HTTP 200 alone
-did not establish usable page content. Deployment and a separate corrected
-pilot are required before scaling. See the private operations snapshot at
+Status: two production pilots have been retained for audit only. Protocol 2
+fixed HTML soft-404 discovery responses and unqualified HTTP 200 pages. Its
+500-result spot audit then found a titleless expired-domain renewal page that
+passed the readable-content gate. Protocol 3 excludes an explicit expiry notice
+at the start of a short page. Deploy and run a separate frozen protocol-3 pilot
+before scaling. Do not mix any prior pilot observations. See the private operations snapshot at
 `outputs/research-50k-2026-09-21/STATUS.md` for current counts and rollout state.
 
 ## Authorization and checkpoints
@@ -98,6 +99,9 @@ would require a separately identified comparable cohort and scanner audit.
 
 ## Research protocol 2
 
+This section documents the superseded protocol. Its 500-result pilot is not
+approved for publication or resumption.
+
 The crawlability scorer remains version 2. An independent
 `research_protocol_version=2` marks the revised research collection rules.
 Customer scans do not opt into this protocol and retain their existing behavior.
@@ -120,7 +124,7 @@ it from publication, and rescan into a separately identified protocol-2 cohort.
   sites. Report this exclusion and denominator; the results describe accessible
   qualifying HTML pages, not every business or every page on each website.
 
-The corrected pilot retains the 500-success checkpoint. Re-estimate final sample
+Each corrected pilot retains the 500-success checkpoint. Re-estimate final sample
 size, source-frame size, attempts, dispatches and total cost using its yield.
 The original 75,000-attempt and 14,000-dispatch limits are unchanged. Do not
 enable a larger run just because its target ceiling was extended.
@@ -164,6 +168,26 @@ Primary references:
   protocol 1 and their original limits. Security advisor counts stayed at the
   pre-existing baseline. Application deployment and full CI status belong in
   the operations snapshot.
+
+## Research protocol 3
+
+Protocol 3 retains the protocol-2 llms.txt and readable-HTML checks, and rejects
+short pages beginning with an explicit expired-domain or expired-registration
+notice. A registrar can return HTTP 200, omit its title and include hundreds of
+characters of renewal and auction boilerplate. That is not a usable business
+homepage. The rule is anchored to the leading notice to avoid excluding an
+ordinary business page that discusses domain renewal later in its text.
+
+The scorer remains version 2. Use a separately frozen protocol-3 cohort with
+the original selection seed, candidates and ranks. Do not relabel or mix the
+protocol-2 results. Carry all prior dispatch reservations into the new run's
+other-cost reserve; this is still one USD 100 study allowance. The new migration
+adds protocol 3 without changing active run limits. It also materializes the
+locked batch selection: a non-materialized IN subquery with SKIP LOCKED could
+be rescanned under some query plans and exceed the requested row count. The
+local fixture reproduced a three-row claim for a two-row limit. Selection must
+be evaluated once before updating targets. The 500-success pilot review and
+every safety guard remain required.
 
 ## Offline frame tools
 

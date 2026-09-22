@@ -8,7 +8,7 @@ const page = {
   text: 'Acme Plumbing provides repairs and installation throughout our local service area. Contact our team to schedule a visit.',
 }
 
-describe('research protocol 2 content validation', () => {
+describe('research protocol 3 content validation', () => {
   it('keeps final-destination exclusions aligned with the source policy', () => {
     expect(RESEARCH_EXCLUDED_HOSTS).toEqual(EXCLUDED_HOSTS)
   })
@@ -43,5 +43,14 @@ describe('research protocol 2 content validation', () => {
   it('does not confuse business prose or a hostname suffix with an exclusion', () => {
     expect(researchPageFailure({ ...page, title: 'Find a page with our bookstore', text: `${page.text} Our article explains the phrase buy this domain. ${'Book descriptions. '.repeat(200)}` })).toBeNull()
     expect(researchPageFailure({ ...page, origin: 'https://notfacebook.com' })).toBeNull()
+  })
+  it('rejects a titleless expired-domain renewal page with readable boilerplate', () => {
+    expect(researchPageFailure({ ...page, title: '', text: 'Domain registration has expired. Renewal instructions: sign in to your registrar account, select this domain and choose Renew. Browse our domain auctions.' })).toBe('parked_domain')
+  })
+  it.each(['This domain has expired.', 'This domain name has expired.', 'Domain registration has expired.'])('rejects an explicit expiry notice at the start: %s', notice => {
+    expect(researchPageFailure({ ...page, title: '', text: `${notice} ${page.text}` })).toBe('parked_domain')
+  })
+  it('does not reject ordinary business prose about domain renewal', () => {
+    expect(researchPageFailure({ ...page, title: 'Domain renewal services', text: `${page.text} We help when domain registration has expired and explain your renewal options.` })).toBeNull()
   })
 })

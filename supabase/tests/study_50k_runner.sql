@@ -173,4 +173,67 @@ begin
   assert (select count(*) from public.study_run_results where cohort='test-quality-failures')=0, 'unusable pages never scored';
 end $$;
 reset role;
+
+-- Protocol 3 retains earlier cohorts for audit, with a separate frozen frame.
+insert into public.study_runs(cohort,research_protocol_version) values('test-v3-defaults',3);
+insert into public.study_runs(cohort,target_successes,success_limit,research_protocol_version)
+  values('test-v3',60000,2,3);
+insert into public.study_run_targets(cohort,domain_key,url,vertical,region,source_ref,sample_rank)
+  select 'test-v3','v3target'||i||'.com','https://v3target'||i||'.com','retail','CA','v3-'||i,
+    encode(sha256(convert_to(i::text,'UTF8')),'hex') from generate_series(1,3) i;
+update public.study_runs set source_frozen_at=clock_timestamp(),state='pilot' where cohort='test-v3';
+do $$
+begin
+  assert (select success_limit=500 and max_attempts=1500 and max_dispatches=500 and budget_cents=10000
+    from public.study_runs where cohort='test-v3-defaults'), 'v3 preserves pilot and budget defaults';
+  assert (public.study_run_status('test-v3')->>'researchProtocolVersion')::integer=3;
+  begin update public.study_runs set research_protocol_version=3 where cohort='test-quality';
+    raise exception 'protocol 2 relabeled'; exception when raise_exception then assert sqlerrm='study_protocol_frozen'; end;
+  begin insert into public.study_runs(cohort,research_protocol_version) values('test-v4',4);
+    raise exception 'unknown protocol accepted'; exception when check_violation then null; end;
+  assert public.dispatch_readiness_study('test-v3')='dispatched';
+end $$;
+set local role service_role;
+do $$
+declare d uuid; t public.study_run_targets; good jsonb; i integer:=0;
+begin
+  select id into d from public.study_run_dispatches where cohort='test-v3';
+  assert (select count(*) from public.claim_study_run_batch('test-v3',d))=2, 'v3 cannot overshoot pilot';
+  good := '{"source":"study","scanner_version":2,"research_protocol_version":3,"score":50,"http_status":200}';
+  for t in select * from public.study_run_targets where cohort='test-v3' and state='running' loop
+    begin perform public.finish_study_run_target(t.cohort,t.id,t.lease_token,good||'{"research_protocol_version":2}',repeat('d',64),null,1,2,3);
+      raise exception 'protocol 2 observation accepted'; exception when raise_exception then assert sqlerrm='invalid_study_metrics'; end;
+    i:=i+1;
+    assert public.finish_study_run_target(t.cohort,t.id,t.lease_token,good,repeat(i::text,64),null,1,2,3);
+  end loop;
+  assert (select state='pilot_review' from public.study_runs where cohort='test-v3'), 'v3 automatic review stop';
+end $$;
+reset role;
+do $$ begin assert public.dispatch_readiness_study('test-v3')='inactive'; end $$;
+
+-- Exercise LIMIT under larger, multi-cohort plans as well as the tiny fixture.
+insert into public.study_runs(cohort,research_protocol_version) values('test-plan-padding',3);
+insert into public.study_run_targets(cohort,domain_key,url,vertical,region,source_ref,sample_rank)
+  select 'test-plan-padding','pad'||i||'.com','https://pad'||i||'.com','retail','CA','pad-'||i,
+    encode(sha256(convert_to(i::text,'UTF8')),'hex') from generate_series(1,2000) i;
+analyze public.study_run_targets;
+do $$
+declare c text; d uuid; plan text;
+begin
+  foreach plan in array array['on','off'] loop
+    perform set_config('enable_hashjoin',plan,true);
+    perform set_config('enable_mergejoin',plan,true);
+    c:='test-plan-'||plan;
+    insert into public.study_runs(cohort,target_successes,success_limit,research_protocol_version) values(c,1000,2,3);
+    insert into public.study_run_targets(cohort,domain_key,url,vertical,region,source_ref,sample_rank)
+      select c,'plan'||i||'.com','https://plan'||i||'.com','retail','CA','plan-'||i,
+        encode(sha256(convert_to(i::text,'UTF8')),'hex') from generate_series(1,100) i;
+    update public.study_runs set source_frozen_at=clock_timestamp(),state='pilot' where cohort=c;
+    assert public.dispatch_readiness_study(c)='dispatched';
+    select id into d from public.study_run_dispatches where cohort=c;
+    assert (select count(*) from public.claim_study_run_batch(c,d))=2, 'batch LIMIT must survive planner changes';
+    assert (select count(*) from public.study_run_targets where cohort=c and state='running')=2;
+    assert (select attempts_reserved from public.study_runs where cohort=c)=2;
+  end loop;
+end $$;
 rollback;
