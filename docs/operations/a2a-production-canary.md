@@ -7,7 +7,7 @@ The job is serialized for the shared credential and verifies the exact productio
 revision before it exercises the protocol. It creates two non-transactional tasks:
 
 - one direct immediate-return task, followed by `GetTask` and an identical replay
-- one blocking send through `@a2a-js/sdk@1.1.0`
+- one blocking send through `@a2a-js/sdk@1.2.0`
 
 The prompts explicitly prohibit tools and transactions. The canary does not perform
 checkout, booking, negotiation execution, payment, approval submission, customer

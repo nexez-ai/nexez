@@ -69,6 +69,21 @@ public environment values are compiled into the current artifact.
 
 ## Phase 6 build evidence
 
+### September 21 maintenance validation
+
+Expo 57 was aligned to the live compatibility metadata (Expo 57.0.24, React Native
+unchanged at 0.86.3). The local release-config/artwork check, typecheck, 21 mobile
+test files with 214 tests, Expo lint, online dependency check, and 40-route web
+export passed. Root mobile parity passed 7 files with 46 tests. This checkout had
+no production client environment values, so the web export is compilation
+evidence, not a live authentication or provider certificate.
+
+The dedicated workflow is now `Nexez Seller Hub` in
+`.github/workflows/seller-mobile.yml`, with release configuration and web/mobile
+contract parity gates. No new EAS build, signing, store submission, source-map
+upload, or physical-device certification was performed in this pass. The older
+build evidence below remains historical and does not certify this revision.
+
 | Platform | Profile | EAS build ID | State | Notes |
 |---|---|---|---|---|
 | Android | `preview` | `19333002-552b-458c-8846-06454ef14b79` | Finished | Internal APK with EAS-managed signing, completed `2026-08-30T03:58:18.036Z` |

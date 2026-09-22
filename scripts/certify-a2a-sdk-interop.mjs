@@ -10,7 +10,7 @@ import {
   JsonRpcTransportFactory,
 } from '@a2a-js/sdk/client'
 
-const SDK_VERSION = '1.1.0'
+const SDK_VERSION = '1.2.0'
 const MODE = mode(process.env.NEXEZ_A2A_INTEROP_MODE || 'public')
 const AGENT_BASE = trim(process.env.NEXEZ_A2A_INTEROP_BASE_URL || 'https://nexez.app')
 const APP_BASE = trim(process.env.NEXEZ_A2A_INTEROP_APP_BASE_URL || 'https://app.nexez.ai')

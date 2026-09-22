@@ -50,7 +50,7 @@ jobs:
         run: npm ci
 
       - name: Install pinned official A2A SDK without changing manifests
-        run: npm install --no-save --no-package-lock --ignore-scripts @a2a-js/sdk@1.1.0
+        run: npm install --no-save --no-package-lock --ignore-scripts @a2a-js/sdk@1.2.0
 
       - name: Run bounded production canary
         run: npm run canary:a2a

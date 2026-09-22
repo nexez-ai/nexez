@@ -33,7 +33,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "2.23.0",
     "@hookform/resolvers": "^5.4.0",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.9",
@@ -45,7 +45,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "inngest": "^4.18.0",
     "lucide-react": "^1.17.0",
-    "next": "16.3.1",
+    "next": "16.3.5",
     "openai": "^6.42.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
@@ -70,7 +70,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "16.3.5",
     "jsdom": "^29.1.1",
     "knip": "^6.32.2",
     "shadcn": "^4.8.3",
@@ -79,10 +79,11 @@
     "vitest": "^4.1.8"
   },
   "allowScripts": {
-    "sharp@0.35.3": true,
+    "sharp@0.35.4": true,
     "unrs-resolver@1.12.2": true
   },
   "overrides": {
+    "hono": "4.13.8",
     "postcss": "8.5.26"
   }
 }

@@ -12,7 +12,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     // Keep independently installed test suites out of the root run. Playwright
     // owns the E2E specs, while seller-mobile installs and runs Vitest from its
-    // own package in the dedicated Nexxi Mobile workflow.
+    // own package in the dedicated Nexez Seller Hub workflow.
     exclude: [
       ...configDefaults.exclude,
       'e2e/**',

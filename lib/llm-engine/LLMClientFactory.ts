@@ -45,13 +45,13 @@ export function createLLMAdapter(): LLMAdapter {
 
   switch (provider) {
     case 'gemini':
-      return new GeminiAdapter(apiKey, model || 'gemini-1.5-flash', baseUrl);
+      return new GeminiAdapter(apiKey, model || undefined, baseUrl);
     case 'grok':
     case 'xai':
       return new GrokAdapter(apiKey, model || 'grok-2', baseUrl || 'https://api.x.ai/v1');
     case 'claude':
     case 'anthropic':
-      return new ClaudeAdapter(apiKey, model || 'claude-3-5-sonnet-20241022');
+      return new ClaudeAdapter(apiKey, model || undefined);
     case 'openai':
     default:
       return new OpenAIAdapter(apiKey, model || 'gpt-4o-mini', baseUrl);

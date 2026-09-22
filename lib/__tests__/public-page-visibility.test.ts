@@ -22,5 +22,14 @@ describe('public marketplace visibility', () => {
     expect(isPublicLaunchVisiblePage({ slug: 'nexez-agent-negotiation-lab' })).toBe(false)
     expect(isPublicLaunchVisiblePage({ slug: 'nexez-party-rentals-certification' })).toBe(false)
     expect(isPublicLaunchVisiblePage({ slug: 'shopify-review-catalog' })).toBe(false)
+    expect(isPublicLaunchVisiblePage({ slug: 'shopify-review-rehearsal-20260908', marketplace_discoverable: true })).toBe(false)
+    expect(isPublicLaunchVisiblePage({ slug: ' Shopify-Review-Rehearsal-20260908 ' })).toBe(false)
+  })
+
+  it('does not hide similarly named real merchants or mutate direct-access records', () => {
+    const merchant = { slug: 'shopify-review-rehearsal-studio', marketplace_discoverable: true }
+    const fixture = { slug: 'shopify-review-rehearsal-20260908', marketplace_discoverable: true }
+    expect(publicLaunchVisiblePages([fixture, merchant])).toEqual([merchant])
+    expect(fixture).toEqual({ slug: 'shopify-review-rehearsal-20260908', marketplace_discoverable: true })
   })
 })

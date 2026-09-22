@@ -40,7 +40,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install pinned official A2A Python SDK
-        run: python -m pip install a2a-sdk==1.1.2
+        run: python -m pip install a2a-sdk==1.1.5
 
       - name: Run public official Python SDK interoperability
         run: python scripts/certify-a2a-python-interop.py
@@ -99,7 +99,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install pinned official A2A Python SDK
-        run: python -m pip install a2a-sdk==1.1.2
+        run: python -m pip install a2a-sdk==1.1.5
 
       - name: Run authenticated official Python SDK interoperability
         run: python scripts/certify-a2a-python-interop.py

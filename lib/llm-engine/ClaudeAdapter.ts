@@ -9,7 +9,7 @@ export class ClaudeAdapter extends BaseLLMAdapter {
   private client: Anthropic;
   readonly provider = 'claude';
 
-  constructor(apiKey: string, model = 'claude-3-5-sonnet-20241022') {
+  constructor(apiKey: string, model = 'claude-sonnet-4-6') {
     super();
     this.model = model;
     this.client = new Anthropic({ apiKey });
