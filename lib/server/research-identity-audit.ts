@@ -17,8 +17,8 @@ const sampleSchema = z.array(z.object({
 export async function readResearchIdentityAudit(cohort: string) {
   const status = await readResearchStatus(cohort)
   if (!status) return null
-  if (status.researchProtocolVersion !== 4 || !['pilot_review', 'paused', 'exhausted', 'completed'].includes(String(status.state))) {
-    throw new Error('Identity review requires a stopped protocol-4 run')
+  if (![4, 5].includes(Number(status.researchProtocolVersion)) || !['pilot_review', 'paused', 'exhausted', 'completed'].includes(String(status.state))) {
+    throw new Error('Identity review requires a stopped protocol-4 or protocol-5 run')
   }
   const admin = createAdminClient()
   const windows = await Promise.all([true, false].map(async ascending => {
@@ -39,5 +39,5 @@ export async function readResearchIdentityAudit(cohort: string) {
       from: times[0] ?? null, to: times.at(-1) ?? null,
     }
   }))
-  return { cohort, protocol: 4, runtimeHashIdentityFingerprint: status.runtimeHashIdentityFingerprint, windows }
+  return { cohort, protocol: status.researchProtocolVersion, runtimeHashIdentityFingerprint: status.runtimeHashIdentityFingerprint, windows }
 }

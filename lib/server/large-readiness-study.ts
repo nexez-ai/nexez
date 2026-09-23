@@ -33,6 +33,7 @@ export function researchHashIdentityFingerprint(): string {
 export function buildResearchObservation(result: SiteSignalsResult, cohort: string, vertical: string) {
   if (result.signals.status < 200 || result.signals.status >= 300) return null
   if (result.researchQuality?.protocolVersion !== RESEARCH_PROTOCOL_VERSION || result.researchQuality.failure !== null) return null
+  if (!result.researchQuality.diagnostics) return null
   const domain = researchDomain(new URL(result.origin).hostname)
   if (!domain) return null
   const row = buildScanResultRow({
@@ -43,6 +44,11 @@ export function buildResearchObservation(result: SiteSignalsResult, cohort: stri
   // Never persist fetched text or put raw domains into the aggregate table.
   const metrics = Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'domain' && key !== 'domain_hash'))
   metrics.research_protocol_version = RESEARCH_PROTOCOL_VERSION
+  const diagnostics = result.researchQuality.diagnostics
+  metrics.research_visible_chars = diagnostics.visibleChars
+  metrics.research_replacement_chars = diagnostics.replacementChars
+  metrics.research_html_bytes = diagnostics.htmlBytes
+  metrics.research_title_chars = diagnostics.titleChars
   return { metrics, domainHash: hashScanDomain(domain) }
 }
 

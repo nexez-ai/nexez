@@ -2,7 +2,7 @@ import 'server-only'
 import { getImportUrlError, getResolvedImportUrlError, safeFetch } from '../importer'
 import { parseRobotsForAgentBots, type AgentBot, type CrawlabilitySignals } from '../crawlability'
 import { readBodyCapped } from './read-body-capped'
-import { isResearchLlmsText, researchPageFailure, RESEARCH_PROTOCOL_VERSION, type ResearchQuality } from './research-quality'
+import { isResearchLlmsText, researchPageDiagnostics, researchPageFailure, RESEARCH_PROTOCOL_VERSION, type ResearchQuality } from './research-quality'
 
 export { readBodyCapped } from './read-body-capped'
 
@@ -227,7 +227,7 @@ async function fetchCapped(url: string, maxBytes: number, options: SiteScanOptio
   return text && text.trim().length >= 20 ? text : null
 }
 
-async function fetchPage(url: string, options: SiteScanOptions): Promise<{ status: number; ms: number; html: string; contentType: string | null; lastModified: string | null; finalUrl: string }> {
+async function fetchPage(url: string, options: SiteScanOptions): Promise<{ status: number; ms: number; html: string; contentType: string | null; contentEncoding: string | null; lastModified: string | null; finalUrl: string }> {
   const started = Date.now()
   const res = await scanFetch(
     url,
@@ -235,9 +235,9 @@ async function fetchPage(url: string, options: SiteScanOptions): Promise<{ statu
     options,
   )
   const ms = Date.now() - started
-  if (!res) return { status: 0, ms, html: '', contentType: null, lastModified: null, finalUrl: url }
+  if (!res) return { status: 0, ms, html: '', contentType: null, contentEncoding: null, lastModified: null, finalUrl: url }
   const html = res.ok ? (await readBodyCapped(res, HTML_BYTE_CAP, options.onBodyBytes)) || '' : ''
-  return { status: res.status, ms, html, contentType: res.headers.get('content-type'), lastModified: res.headers.get('last-modified'), finalUrl: res.url || url }
+  return { status: res.status, ms, html, contentType: res.headers.get('content-type'), contentEncoding: res.headers.get('content-encoding'), lastModified: res.headers.get('last-modified'), finalUrl: res.url || url }
 }
 
 export type SiteSignalsResult = {
@@ -299,6 +299,10 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
   const html = page.html
   const lower = html.toLowerCase()
   const visibleText = stripHtmlToText(html, 50_000)
+  const researchText = options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION
+    ? stripHtmlToText(html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, ''), 50_000) : ''
+  const researchTitle = options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION
+    ? stripHtmlToText(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '') : ''
   const structured = extractStructuredEvidence(html)
   const robots = parseRobotsForAgentBots(robotsTxt)
   const metaDate = html.match(/<meta[^>]+(?:property|name)=["'](?:article:modified_time|date|last-modified)["'][^>]+content=["']([^"']+)["']/i)?.[1]
@@ -344,10 +348,10 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
     ...(options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION ? {
       researchQuality: {
         protocolVersion: RESEARCH_PROTOCOL_VERSION,
+        diagnostics: researchPageDiagnostics(html, researchText, researchTitle),
         failure: researchPageFailure({
-          origin, contentType: page.contentType, html,
-          text: stripHtmlToText(html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, ''), 50_000),
-          title: stripHtmlToText(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || ''),
+          origin, contentType: page.contentType, contentEncoding: page.contentEncoding, html,
+          text: researchText, title: researchTitle,
         }),
       },
     } : {}),
