@@ -21,6 +21,47 @@ on:
   workflow_dispatch:
 
 jobs:
+  research-guardrails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: study_test
+          POSTGRES_PASSWORD: isolated-fixture-only
+          POSTGRES_DB: study_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U study_test -d study_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: study_test
+      PGPASSWORD: isolated-fixture-only
+      PGDATABASE: study_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bootstrap disposable research database with HTTP stubbed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --file=scripts/study-test-bootstrap.sql
+          sed -n '/^create function public.acquire_scan_network_slot/,/^create function public.claim_organization_scan_target/{/^create function public.claim_organization_scan_target/!p;}' supabase/migrations/20260908033732_organization_scan_execution.sql | psql -X --set=ON_ERROR_STOP=1
+      - name: Replay research migrations and prove bounded completion and lineage
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=supabase/migrations/20260921195549_study_50k_durable_runner.sql \
+            --file=supabase/migrations/20260921232547_study_research_quality_protocol.sql \
+            --file=supabase/migrations/20260922032638_study_expired_domain_protocol.sql \
+            --file=supabase/migrations/20260922073237_study_placeholder_quality_protocol.sql \
+            --file=supabase/migrations/20260923171429_study_dispatch_cost_ledger.sql \
+            --file=supabase/migrations/20260923180323_study_two_wave_lineage.sql \
+            --file=supabase/tests/study_50k_runner.sql \
+            --file=supabase/tests/study_wave_lineage.sql
+
   migration-sanity:
     runs-on: ubuntu-latest
     steps:
