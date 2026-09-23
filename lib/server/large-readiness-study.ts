@@ -25,6 +25,11 @@ export function researchDomain(hostname: string): string | null {
   return getDomain(hostname.toLowerCase(), { allowPrivateDomains: true })
 }
 
+/** Configuration continuity only. This fixed marker is never requested over HTTP. */
+export function researchHashIdentityFingerprint(): string {
+  return hashScanDomain('nexez-research-identity-v1.invalid')
+}
+
 export function buildResearchObservation(result: SiteSignalsResult, cohort: string, vertical: string) {
   if (result.signals.status < 200 || result.signals.status >= 300) return null
   if (result.researchQuality?.protocolVersion !== RESEARCH_PROTOCOL_VERSION || result.researchQuality.failure !== null) return null
@@ -78,8 +83,18 @@ async function scanResearchTarget(target: ResearchTarget) {
  */
 export async function runResearchBatch(cohort: string, dispatchId: string) {
   const admin = createAdminClient()
-  const status = await readResearchStatus(cohort) as { researchProtocolVersion?: number } | null
+  const status = await readResearchStatus(cohort)
   if (status?.researchProtocolVersion !== RESEARCH_PROTOCOL_VERSION) throw new Error('Incompatible research protocol')
+  if (status.hashIdentityFingerprint && status.hashIdentityFingerprint !== researchHashIdentityFingerprint()) {
+    // Fail before claiming targets. Do not let a changed salt create duplicate
+    // identities within a sealed study or its compatible continuation.
+    const { error } = await admin.from('study_runs')
+      .update({ state: 'paused', stop_reason: 'hash_identity_changed' })
+      .eq('cohort', cohort).in('state', ['pilot', 'running'])
+      .abortSignal(AbortSignal.timeout(5_000))
+    if (error) throw new Error('Could not pause research identity mismatch')
+    throw new Error('Incompatible research identity')
+  }
   const data = await scanRpc(admin, 'claim_study_run_batch', { p_cohort: cohort, p_dispatch: dispatchId })
   const targets = data as ResearchTarget[] | null
   if (!Array.isArray(targets) || targets.length > 6) throw new Error('Invalid research claim')
@@ -105,5 +120,13 @@ export async function runResearchBatch(cohort: string, dispatchId: string) {
 }
 
 export async function readResearchStatus(cohort: string) {
-  return scanRpc(createAdminClient(), 'study_run_status', { p_cohort: cohort })
+  const status = await scanRpc(createAdminClient(), 'study_run_status', { p_cohort: cohort }) as {
+    state?: string
+    researchProtocolVersion?: number
+    hashIdentityFingerprint?: string | null
+    [key: string]: unknown
+  } | null
+  // Only the already-authenticated internal status endpoint exposes this
+  // one-way marker, never the salt or any website identifier.
+  return status ? { ...status, runtimeHashIdentityFingerprint: researchHashIdentityFingerprint() } : null
 }

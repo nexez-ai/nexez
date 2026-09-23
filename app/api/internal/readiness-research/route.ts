@@ -3,11 +3,13 @@ import { z } from 'zod'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { authorizeStudyRequest } from '@/lib/server/agent-readiness-study'
 import { readResearchStatus, runResearchBatch } from '@/lib/server/large-readiness-study'
+import { readResearchIdentityAudit } from '@/lib/server/research-identity-audit'
 
 export const maxDuration = 60
 const headers = { 'Cache-Control': 'private, no-store' }
 const requestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('status'), cohort: z.string().regex(/^[a-z0-9-]{3,80}$/) }).strict(),
+  z.object({ action: z.literal('identity-check'), cohort: z.string().regex(/^[a-z0-9-]{3,80}$/) }).strict(),
   z.object({ action: z.literal('tick'), cohort: z.string().regex(/^[a-z0-9-]{3,80}$/), dispatchId: z.uuid() }).strict(),
 ])
 
@@ -38,6 +40,10 @@ export async function POST(request: Request) {
     body = requestSchema.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')))
   } catch { return NextResponse.json({ error: 'Invalid request' }, { status: 400, headers }) }
   try {
+    if (body.action === 'identity-check') {
+      const audit = await readResearchIdentityAudit(body.cohort)
+      return NextResponse.json(audit ?? { error: 'Unknown cohort' }, { status: audit ? 200 : 404, headers })
+    }
     if (body.action === 'status') {
       const status = await readResearchStatus(body.cohort)
       return NextResponse.json(status ?? { error: 'Unknown cohort' }, { status: status ? 200 : 404, headers })

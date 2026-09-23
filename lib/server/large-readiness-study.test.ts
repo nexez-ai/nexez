@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CrawlabilitySignals } from '@/lib/crawlability'
 import type { SiteSignalsResult } from './site-scan'
 const { rpc, gather, network, update, admin, capture } = vi.hoisted(() => {
   const update = vi.fn()
-  const chain = { eq: vi.fn(), not: vi.fn(), abortSignal: vi.fn() }
-  chain.eq.mockReturnValue(chain); chain.not.mockReturnValue(chain); chain.abortSignal.mockResolvedValue({ error: null })
+  const chain = { eq: vi.fn(), in: vi.fn(), not: vi.fn(), abortSignal: vi.fn() }
+  chain.eq.mockReturnValue(chain); chain.in.mockReturnValue(chain); chain.not.mockReturnValue(chain); chain.abortSignal.mockResolvedValue({ error: null })
   update.mockReturnValue(chain)
   return { rpc: vi.fn(), gather: vi.fn(), network: vi.fn(), update, admin: { from: vi.fn(() => ({ update })) }, capture: vi.fn() }
 })
@@ -13,7 +13,7 @@ vi.mock('./organization-scans', () => ({ scanRpc: rpc }))
 vi.mock('./site-scan', () => ({ gatherSiteSignals: gather }))
 vi.mock('./scan-network', async (original) => ({ ...await original<typeof import('./scan-network')>(), createScanNetworkContext: network }))
 vi.mock('@/lib/observability', () => ({ captureEvent: capture }))
-import { buildResearchObservation, researchDomain, runResearchBatch } from './large-readiness-study'
+import { buildResearchObservation, readResearchStatus, researchDomain, researchHashIdentityFingerprint, runResearchBatch } from './large-readiness-study'
 import { ScanNetworkError } from './scan-network'
 
 const signals: CrawlabilitySignals = {
@@ -39,7 +39,34 @@ beforeEach(() => {
   gather.mockResolvedValue(result)
   network.mockImplementation(() => ({ options: {}, assertFinished: vi.fn(), close: vi.fn(async () => {}), metrics: { bytesRead: 100, probeCount: 2 } }))
 })
+afterEach(() => vi.unstubAllEnvs())
 describe('large research runner', () => {
+  it('reports a one-way runtime identity marker without exposing the configured salt', async () => {
+    vi.stubEnv('SCAN_DOMAIN_HASH_SALT', 'private-test-salt')
+    const status = await readResearchStatus('test-cohort')
+    expect(status?.runtimeHashIdentityFingerprint).toMatch(/^[a-f0-9]{64}$/)
+    expect(JSON.stringify(status)).not.toContain('private-test-salt')
+    const first = researchHashIdentityFingerprint()
+    vi.stubEnv('SCAN_DOMAIN_HASH_SALT', 'changed-test-salt')
+    expect(researchHashIdentityFingerprint()).not.toBe(first)
+    rpc.mockResolvedValue(null)
+    expect(await readResearchStatus('unknown-cohort')).toBeNull()
+  })
+  it('stops a sealed study before network work when its hash configuration changes', async () => {
+    rpc.mockResolvedValue({ researchProtocolVersion: 4, hashIdentityFingerprint: '0'.repeat(64) })
+    await expect(runResearchBatch('test-cohort', 'dispatch-id')).rejects.toThrow('Incompatible research identity')
+    expect(admin.from).toHaveBeenCalledWith('study_runs')
+    expect(update).toHaveBeenCalledWith({ state: 'paused', stop_reason: 'hash_identity_changed' })
+    expect(rpc).not.toHaveBeenCalledWith(admin, 'claim_study_run_batch', expect.anything())
+    expect(gather).not.toHaveBeenCalled()
+  })
+  it('continues with the same sealed identity without changing scoring', async () => {
+    rpc.mockImplementation(async (_client: unknown, name: string) => name === 'study_run_status'
+      ? { researchProtocolVersion: 4, hashIdentityFingerprint: researchHashIdentityFingerprint() }
+      : name === 'claim_study_run_batch' ? [target] : true)
+    expect(await runResearchBatch('test-cohort', 'dispatch-id')).toMatchObject({ claimed: 1, persisted: 1 })
+    expect(update).not.toHaveBeenCalledWith(expect.objectContaining({ state: 'paused' }))
+  })
   it('uses registrable domains but preserves private hosting tenants', () => {
     expect(researchDomain('WWW.Example.co.uk')).toBe('example.co.uk')
     expect(researchDomain('shop.example.co.uk')).toBe('example.co.uk')
