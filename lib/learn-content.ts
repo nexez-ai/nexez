@@ -89,8 +89,10 @@ import { howToVerifyAiAgents } from './learn-articles/how-to-verify-ai-agents'
 import { returnPoliciesForAiAgents } from './learn-articles/return-policies-for-ai-agents'
 import { whenAiGetsYourBusinessWrong } from './learn-articles/when-ai-gets-your-business-wrong'
 import { deliveryPromisesForAiAgents } from './learn-articles/delivery-promises-for-ai-agents'
+import { whatStopsAgentsCompletingTasks } from './learn-articles/what-stops-agents-completing-tasks'
 
 export const learnArticles: LearnArticle[] = [
+  whatStopsAgentsCompletingTasks,
   deliveryPromisesForAiAgents,
   whenAiGetsYourBusinessWrong,
   returnPoliciesForAiAgents,
