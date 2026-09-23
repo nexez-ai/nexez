@@ -28,8 +28,9 @@ pilot. All 5,000 must reach a terminal outcome before any continuation.
 
 Seal a finite family ceiling of 120,000 new attempts and 20,000 new dispatches,
 including this revalidation. At USD 0.0027 and the carried reserve this is at
-most USD 97.03, leaving USD 2.97 extra unallocated margin. Active stage limits
-are much smaller. These ceilings do not guarantee 50,000 results or full-frame
+most USD 97.03 before the continuation's upward carry rounding. Allowing one
+additional cent gives USD 97.04, leaving USD 2.96 extra unallocated margin.
+Active stage limits are much smaller. These ceilings do not guarantee 50,000 results or full-frame
 completion. Lower yield, retries, changed usage and review pauses can reduce
 the achieved sample. Intermediate gates and the original deadline still apply.
 
