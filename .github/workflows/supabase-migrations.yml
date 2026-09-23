@@ -90,11 +90,18 @@ jobs:
   clean-replay:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v3
         with:
           version: 2.114.0
+      - name: Authenticate read-only container downloads
+        env:
+          REGISTRY_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$REGISTRY_READ_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - name: Start isolated local Supabase
         run: supabase start -x edge-runtime
       - name: Replay every migration from zero
@@ -138,3 +145,6 @@ jobs:
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup
+      - name: Remove temporary registry authentication
+        if: always()
+        run: docker logout ghcr.io

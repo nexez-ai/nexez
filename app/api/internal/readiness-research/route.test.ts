@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const { authorize, limited, status, batch } = vi.hoisted(() => ({
-  authorize: vi.fn(), limited: vi.fn(), status: vi.fn(), batch: vi.fn(),
+const { authorize, limited, status, batch, identity } = vi.hoisted(() => ({
+  authorize: vi.fn(), limited: vi.fn(), status: vi.fn(), batch: vi.fn(), identity: vi.fn(),
 }))
 vi.mock('@/lib/server/agent-readiness-study', () => ({ authorizeStudyRequest: authorize }))
 vi.mock('@/lib/rate-limit', () => ({ enforceRateLimit: limited }))
 vi.mock('@/lib/server/large-readiness-study', () => ({ readResearchStatus: status, runResearchBatch: batch }))
+vi.mock('@/lib/server/research-identity-audit', () => ({ readResearchIdentityAudit: identity }))
 import { POST } from './route'
 function request(body: unknown) {
   return new Request('https://app.nexez.ai/api/internal/readiness-research', {
@@ -43,6 +44,21 @@ describe('readiness research route', () => {
     const id = 'f1000000-0000-4000-8000-000000000001'
     const res = await POST(request({ action: 'tick', cohort: 'test-cohort', dispatchId: id }))
     expect(res.status).toBe(200); expect(batch).toHaveBeenCalledWith('test-cohort', id)
+  })
+  it('keeps the bounded identity check authenticated, aggregate and uncached', async () => {
+    authorize.mockResolvedValue(false)
+    expect((await POST(request({ action: 'identity-check', cohort: 'test-cohort' }))).status).toBe(401)
+    expect(identity).not.toHaveBeenCalled()
+    authorize.mockResolvedValue(true)
+    identity.mockResolvedValue({ windows: [{ sampled: 32, matchedInitialDomains: 30, inconclusive: 2 }] })
+    const res = await POST(request({ action: 'identity-check', cohort: 'test-cohort' }))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toContain('no-store')
+    expect(batch).not.toHaveBeenCalled()
+    identity.mockRejectedValue(new Error('private domain or salt'))
+    const failed = await POST(request({ action: 'identity-check', cohort: 'test-cohort' }))
+    expect(failed.status).toBe(503)
+    expect(await failed.text()).not.toMatch(/domain|salt/)
   })
   it('redacts internal errors and represents unavailable cohorts', async () => {
     status.mockResolvedValue(null)

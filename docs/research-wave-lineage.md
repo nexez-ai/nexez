@@ -22,6 +22,15 @@ website identifier. Before claiming a batch, a sealed run compares its stored
 fingerprint with the runtime value. A mismatch pauses the run before site traffic.
 The page scanner, eligibility, score and domain-hash algorithm are unchanged.
 
+The same authenticated endpoint accepts identity-check only for a stopped
+protocol-4 run. It compares the earliest 32 and latest 32 recorded observations
+with runtime hashes of their original registrable domains. Only counts, time
+ranges and the fixed marker are returned. A match is direct identity evidence;
+a non-match is inconclusive because the original request may have redirected.
+The two windows can overlap in small cohorts and must not be summed as unique
+observations. This diagnostic performs no site requests or database writes,
+and is not a substitute for the configuration-history review.
+
 Each root permits exactly one continuation, no branches or chains. The parent
 must be exhausted with no remaining queued/running targets or live dispatches.
 Both waves use protocol 4 and the identical sealed fingerprint. The extension

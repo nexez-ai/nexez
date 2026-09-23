@@ -121,6 +121,7 @@ export async function runResearchBatch(cohort: string, dispatchId: string) {
 
 export async function readResearchStatus(cohort: string) {
   const status = await scanRpc(createAdminClient(), 'study_run_status', { p_cohort: cohort }) as {
+    state?: string
     researchProtocolVersion?: number
     hashIdentityFingerprint?: string | null
     [key: string]: unknown
