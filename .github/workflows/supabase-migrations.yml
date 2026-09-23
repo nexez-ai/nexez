@@ -59,8 +59,10 @@ jobs:
             --file=supabase/migrations/20260922073237_study_placeholder_quality_protocol.sql \
             --file=supabase/migrations/20260923171429_study_dispatch_cost_ledger.sql \
             --file=supabase/migrations/20260923180323_study_two_wave_lineage.sql \
+            --file=supabase/migrations/20260923194611_study_protocol5_revalidation.sql \
             --file=supabase/tests/study_50k_runner.sql \
-            --file=supabase/tests/study_wave_lineage.sql
+            --file=supabase/tests/study_wave_lineage.sql \
+            --file=supabase/tests/study_protocol5_revalidation.sql
 
   migration-sanity:
     runs-on: ubuntu-latest

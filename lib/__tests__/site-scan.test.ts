@@ -171,10 +171,10 @@ describe('gatherSiteSignals', () => {
       '<html><head><title>Page not found</title></head><body>Sorry, this page does not exist.</body></html>',
       { headers: { 'Content-Type': 'text/html' } },
     ))
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 4 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 5 })
     if ('error' in output) throw new Error('Unexpected URL error')
     expect(output.signals.llmsTxtOk).toBe(false)
-    expect(output.researchQuality).toEqual({ protocolVersion: 4, failure: 'unavailable_page' })
+    expect(output.researchQuality).toMatchObject({ protocolVersion: 5, failure: 'unavailable_page' })
     const legacy = await gatherSiteSignals('acme.com', {})
     if ('error' in legacy) throw new Error('Unexpected URL error')
     expect(legacy.signals.llmsTxtOk).toBe(true)
@@ -186,10 +186,10 @@ describe('gatherSiteSignals', () => {
       '<html><body>Domain registration has expired. Renewal instructions: sign in to your registrar account, open your domain list and choose Renew. Browse domain auctions and renewal help.</body></html>',
       { headers: { 'Content-Type': 'text/html' } },
     ))
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 4 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 5 })
     if ('error' in output) throw new Error('Unexpected URL error')
     expect(output.signals.status).toBe(200)
-    expect(output.researchQuality).toEqual({ protocolVersion: 4, failure: 'parked_domain' })
+    expect(output.researchQuality).toMatchObject({ protocolVersion: 5, failure: 'parked_domain' })
     const customer = await gatherSiteSignals('acme.com', {})
     expect(customer).not.toHaveProperty('researchQuality')
   })
@@ -200,9 +200,9 @@ describe('gatherSiteSignals', () => {
   ])('excludes research placeholders without changing customer results', async (text, failure) => {
     safeFetch.mockImplementation(async () => bodyResponse(`<html><body>${text}</body></html>`,
       { headers: { 'Content-Type': 'text/html' } }))
-    const research = await gatherSiteSignals('acme.com', { researchProtocolVersion: 4 })
+    const research = await gatherSiteSignals('acme.com', { researchProtocolVersion: 5 })
     if ('error' in research) throw new Error('Unexpected URL error')
-    expect(research.researchQuality).toEqual({ protocolVersion: 4, failure })
+    expect(research.researchQuality).toMatchObject({ protocolVersion: 5, failure })
     const customer = await gatherSiteSignals('acme.com', {})
     expect(customer).not.toHaveProperty('researchQuality')
   })
@@ -216,9 +216,11 @@ describe('gatherSiteSignals', () => {
       )
       return new Response('', { status: 404 })
     })
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 4 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 5 })
     if ('error' in output) throw new Error('Unexpected URL error')
-    expect(output.researchQuality).toEqual({ protocolVersion: 4, failure: null })
+    expect(output.researchQuality).toMatchObject({ protocolVersion: 5, failure: null })
+    expect(output.researchQuality?.diagnostics).toMatchObject({ replacementChars: 0, titleChars: 13 })
+    expect(output.researchQuality?.diagnostics?.visibleChars).toBeGreaterThanOrEqual(80)
     expect(output.signals.llmsTxtOk).toBe(true)
     expect(safeFetch).toHaveBeenCalledTimes(8)
   })
@@ -228,8 +230,20 @@ describe('gatherSiteSignals', () => {
       `<html><head><title>${'Business title '.repeat(20)}</title></head><body></body></html>`,
       { headers: { 'Content-Type': 'text/html' } },
     ))
-    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 4 })
+    const output = await gatherSiteSignals('acme.com', { researchProtocolVersion: 5 })
     if ('error' in output) throw new Error('Unexpected URL error')
     expect(output.researchQuality?.failure).toBe('insufficient_content')
+  })
+
+  it('excludes unexpected compressed HTML only from research', async () => {
+    safeFetch.mockImplementation(async () => bodyResponse(
+      '<html><body>Acme Plumbing offers installation, repairs and emergency appointments. Contact our team to book a visit.</body></html>',
+      { headers: { 'Content-Type': 'text/html', 'Content-Encoding': 'gzip' } },
+    ))
+    const research = await gatherSiteSignals('acme.com', { researchProtocolVersion: 5 })
+    if ('error' in research) throw new Error('Unexpected URL error')
+    expect(research.researchQuality?.failure).toBe('non_html')
+    const customer = await gatherSiteSignals('acme.com', {})
+    expect(customer).not.toHaveProperty('researchQuality')
   })
 })

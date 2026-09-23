@@ -14,7 +14,7 @@ import { hashScanDomain } from './log-scan-result'
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubEnv('SCAN_DOMAIN_HASH_SALT', 'private-audit-salt')
-  status.mockResolvedValue({ state: 'paused', researchProtocolVersion: 4, runtimeHashIdentityFingerprint: 'a'.repeat(64) })
+  status.mockResolvedValue({ state: 'paused', researchProtocolVersion: 5, runtimeHashIdentityFingerprint: 'a'.repeat(64) })
   query.abortSignal.mockResolvedValue({ error: null, data: [
     { final_domain_hash: hashScanDomain('example.com'), created_at: '2026-09-22T08:00:00+00:00', target: { domain_key: 'www.example.com' } },
     { final_domain_hash: hashScanDomain('redirect.example'), created_at: '2026-09-23T19:00:00+00:00', target: { domain_key: 'initial.example' } },
@@ -24,6 +24,7 @@ afterEach(() => vi.unstubAllEnvs())
 describe('private research identity review', () => {
   it('compares bounded earliest/latest samples and returns only aggregate evidence', async () => {
     const result = await readResearchIdentityAudit('test-cohort')
+    expect(result?.protocol).toBe(5)
     expect(result?.windows).toHaveLength(2)
     expect(result?.windows[0]).toMatchObject({ edge: 'earliest', sampled: 2, matchedInitialDomains: 1, inconclusive: 1 })
     expect(result?.windows[1].edge).toBe('latest')
@@ -32,13 +33,17 @@ describe('private research identity review', () => {
     expect(query.eq).toHaveBeenCalledWith('cohort', 'test-cohort')
     expect(JSON.stringify(result)).not.toMatch(/example|private-audit-salt|domain_key|final_domain_hash/)
   })
+  it('keeps stopped predecessor identity evidence available without running its scanner', async () => {
+    status.mockResolvedValue({ state: 'paused', researchProtocolVersion: 4 })
+    expect((await readResearchIdentityAudit('old-cohort'))?.protocol).toBe(4)
+  })
   it.each(['running', 'pilot', 'preparing'])('rejects the active or unready %s state before reading identities', async state => {
-    status.mockResolvedValue({ state, researchProtocolVersion: 4 })
+    status.mockResolvedValue({ state, researchProtocolVersion: 5 })
     await expect(readResearchIdentityAudit('test-cohort')).rejects.toThrow('stopped protocol-4')
     expect(from).not.toHaveBeenCalled()
   })
   it.each(['pilot_review', 'paused', 'exhausted', 'completed'])('permits the stopped %s state', async state => {
-    status.mockResolvedValue({ state, researchProtocolVersion: 4 })
+    status.mockResolvedValue({ state, researchProtocolVersion: 5 })
     expect((await readResearchIdentityAudit('test-cohort'))?.windows).toHaveLength(2)
   })
   it('rejects superseded protocols and represents unknown cohorts', async () => {

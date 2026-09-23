@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EXCLUDED_HOSTS } from '../../scripts/research-frame.mjs'
-import { isResearchLlmsText, researchPageFailure, RESEARCH_EXCLUDED_HOSTS } from './research-quality'
+import { isResearchLlmsText, researchPageDiagnostics, researchPageFailure, RESEARCH_EXCLUDED_HOSTS } from './research-quality'
 
 const page = {
   origin: 'https://example.com', contentType: 'text/html; charset=utf-8',
@@ -8,7 +8,7 @@ const page = {
   text: 'Acme Plumbing provides repairs and installation throughout our local service area. Contact our team to schedule a visit.',
 }
 
-describe('research protocol 4 content validation', () => {
+describe('research protocol 5 content validation', () => {
   it('keeps final-destination exclusions aligned with the source policy', () => {
     expect(RESEARCH_EXCLUDED_HOSTS).toEqual(EXCLUDED_HOSTS)
   })
@@ -91,5 +91,46 @@ describe('research protocol 4 content validation', () => {
   it('preserves useful business content alongside a new-site notice or empty blog', () => {
     expect(researchPageFailure({ ...page, title: 'New site coming soon', text: `NEW SITE COMING SOON. ${page.text}` })).toBeNull()
     expect(researchPageFailure({ ...page, text: `Nothing Found. ${page.text}` })).toBeNull()
+  })
+  it.each([
+    ['Unpublished', 'This site is ready Nothing has been published here yet. Please check back soon. Is this your site? Upload your files with an index in the top folder. This page disappears automatically as soon as that file is there.', 'unavailable_page'],
+    ['Future home under construction', "Future home of something quite cool If you're the site owner, log in to launch this site. If you are a visitor, please check back soon.", 'unavailable_page'],
+    ['Index of /', 'Index of / Name Last modified Size Description cgi-bin folder assets archive files server footer', 'unavailable_page'],
+    ['Index of /', 'Index of / Name Last Modified Size cgi-bin 2026-01-01 10:00 - Proudly Served by Example Server', 'unavailable_page'],
+    ['Welcome', 'This website may be down for maintenance. Site available for sale. Contact the administrator for information.', 'parked_domain'],
+    ['App', "We're sorry but Example Studio doesn't work properly without JavaScript enabled. Please enable it to continue.", 'insufficient_content'],
+    ['App', 'We are sorry but Example Studio does not work properly without JavaScript enabled. Please enable it to continue.', 'insufficient_content'],
+    ['Welcome to nginx!', 'Welcome to nginx! If you see this page, the nginx web server is successfully installed and working. Further configuration is required. For online documentation and support please refer to the server manual. Thank you for using nginx.', 'unavailable_page'],
+    ['Down', "The Website is Currently Down. We're sorry for the inconvenience. If you need assistance, please contact our web support team at the hosting provider.", 'unavailable_page'],
+    ['Redirect', "Loading redirection target In approx. 2 seconds the redirection target page should load. If it doesn't please select the link above.", 'insufficient_content'],
+    ['', "JavaScript is disabled In order to continue, we need to verify that you're not a robot. This requires JavaScript. Enable JavaScript and then reload the page.", 'challenge_page'],
+  ])('excludes a template family without scoring its boilerplate: %s', (title, text, reason) => {
+    expect(researchPageFailure({ ...page, title, text })).toBe(reason)
+  })
+  it('rejects an HTML MIME label on binary or mostly undecodable data', () => {
+    expect(researchPageFailure({ ...page, html: 'compressed-binary-payload' })).toBe('non_html')
+    expect(researchPageFailure({ ...page, text: 'bad\uFFFD'.repeat(30) })).toBe('insufficient_content')
+    expect(researchPageFailure({ ...page, text: `${page.text} \uFFFD` })).toBeNull()
+  })
+  it.each(['gzip', 'br', 'deflate', 'gzip, br'])('excludes unsupported transport encoding %s without inflating it', contentEncoding => {
+    expect(researchPageFailure({ ...page, contentEncoding })).toBe('non_html')
+  })
+  it.each([null, '', 'identity', ' Identity '])('accepts an uncompressed response: %s', contentEncoding => {
+    expect(researchPageFailure({ ...page, contentEncoding })).toBeNull()
+  })
+  it.each([
+    'We build JavaScript applications and help when a website is currently down. Contact our local support team.',
+    'Our business has moved. Visit our new website for services, hours and appointments. Thank you for your support.',
+    'MENU HOME CONTACT Our clinic offers appointments Monday to Friday. Telephone and email bookings welcome.',
+    'Café São Paulo provides food and drinks. Bienvenidos, bienvenue, willkommen. Contact us for reservations.',
+    'This frames fallback describes our clinic, treatments, opening hours and how to contact the reception team.',
+    "The website is currently down, but our shop is open. Visit us for repairs or call our team for appointments.",
+    "We're sorry but Example doesn't work properly without JavaScript enabled. Please enable it to continue. We provide plumbing repairs, installations and emergency support. Contact our team to book a service.",
+    'Welcome to nginx! Our hosting company provides local support, migration, backups and managed servers for businesses.',
+  ])('preserves readable business content and multilingual text', text => {
+    expect(researchPageFailure({ ...page, text })).toBeNull()
+  })
+  it('emits only bounded numeric content evidence, never page bodies', () => {
+    expect(researchPageDiagnostics('<p>Test</p>', ' Test ', 'Title')).toEqual({ visibleChars: 4, replacementChars: 0, htmlBytes: 11, titleChars: 5 })
   })
 })
