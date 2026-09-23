@@ -23,7 +23,8 @@ export async function readResearchIdentityAudit(cohort: string) {
   const admin = createAdminClient()
   const windows = await Promise.all([true, false].map(async ascending => {
     const { data, error } = await admin.from('study_run_results')
-      .select('final_domain_hash,created_at,target:study_run_targets!inner(domain_key)')
+      // Revalidation adds a second relationship; audit the original result target.
+      .select('final_domain_hash,created_at,target:study_run_targets!study_run_results_cohort_target_id_fkey!inner(domain_key)')
       .eq('cohort', cohort).order('created_at', { ascending }).order('target_id', { ascending })
       .limit(32).abortSignal(AbortSignal.timeout(5_000))
     if (error) throw new Error('Identity review unavailable')

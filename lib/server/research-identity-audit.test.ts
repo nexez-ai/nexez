@@ -31,6 +31,7 @@ describe('private research identity review', () => {
     expect(query.limit).toHaveBeenNthCalledWith(1, 32)
     expect(query.limit).toHaveBeenNthCalledWith(2, 32)
     expect(query.eq).toHaveBeenCalledWith('cohort', 'test-cohort')
+    expect(query.select).toHaveBeenCalledWith('final_domain_hash,created_at,target:study_run_targets!study_run_results_cohort_target_id_fkey!inner(domain_key)')
     expect(JSON.stringify(result)).not.toMatch(/example|private-audit-salt|domain_key|final_domain_hash/)
   })
   it('keeps stopped predecessor identity evidence available without running its scanner', async () => {
