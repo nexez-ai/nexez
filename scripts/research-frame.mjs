@@ -11,6 +11,9 @@ import { pathToFileURL } from 'node:url'
 import { parse } from 'tldts'
 
 export const VERTICALS = ['restaurants', 'health', 'home_trades', 'personal_care', 'retail']
+// An explicit ceiling for a separately audited nested extension. The original
+// default stays 15,000 per category and existing manifests remain immutable.
+export const MAX_FRAME_PER_VERTICAL = 25000
 const REGIONS = new Set('AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' '))
 export const EXCLUDED_HOSTS = [
   'facebook.com', 'instagram.com', 'linktr.ee', 'yelp.com', 'google.com', 'goo.gl',
@@ -93,7 +96,7 @@ export function createFrameSelector(cohort, config) {
         })
     },
     finish(perVertical = 15000) {
-      if (!Number.isInteger(perVertical) || perVertical < 1 || perVertical > 15000) throw new Error('Invalid category cap')
+      if (!Number.isInteger(perVertical) || perVertical < 1 || perVertical > MAX_FRAME_PER_VERTICAL) throw new Error('Invalid category cap')
       const eligibleByVertical = Object.fromEntries(VERTICALS.map(vertical => [vertical, 0]))
       const selectedByVertical = Object.fromEntries(VERTICALS.map(vertical => [vertical, 0]))
       const selectedByRegion = {}
