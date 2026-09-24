@@ -60,9 +60,11 @@ jobs:
             --file=supabase/migrations/20260923171429_study_dispatch_cost_ledger.sql \
             --file=supabase/migrations/20260923180323_study_two_wave_lineage.sql \
             --file=supabase/migrations/20260923194611_study_protocol5_revalidation.sql \
+            --file=supabase/migrations/20260924014315_study_protocol6_hosting_recovery.sql \
             --file=supabase/tests/study_50k_runner.sql \
             --file=supabase/tests/study_wave_lineage.sql \
-            --file=supabase/tests/study_protocol5_revalidation.sql
+            --file=supabase/tests/study_protocol5_revalidation.sql \
+            --file=supabase/tests/study_protocol6_recovery.sql
 
   migration-sanity:
     runs-on: ubuntu-latest

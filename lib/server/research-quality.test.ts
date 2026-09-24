@@ -8,7 +8,7 @@ const page = {
   text: 'Acme Plumbing provides repairs and installation throughout our local service area. Contact our team to schedule a visit.',
 }
 
-describe('research protocol 5 content validation', () => {
+describe('research protocol 6 content validation', () => {
   it('keeps final-destination exclusions aligned with the source policy', () => {
     expect(RESEARCH_EXCLUDED_HOSTS).toEqual(EXCLUDED_HOSTS)
   })
@@ -132,5 +132,37 @@ describe('research protocol 5 content validation', () => {
   })
   it('emits only bounded numeric content evidence, never page bodies', () => {
     expect(researchPageDiagnostics('<p>Test</p>', ' Test ', 'Title')).toEqual({ visibleChars: 4, replacementChars: 0, htmlBytes: 11, titleChars: 5 })
+  })
+  describe('provider promotional holding template', () => {
+    // Synthetic examples only, not saved research responses or real identities.
+    const bodies = ['Affordable, Reliable', 'Affordable and Reliable', 'Reliable, Affordable']
+      .flatMap(pitch => ['ExampleHost', 'Sample Hosting Ltd.', 'demo.example'].flatMap(provider => [
+        `${pitch} Web Hosting Solutions Web Hosting - courtesy of ${provider} Awards --> Help Center Contact Us About Us Affiliates Terms &copy;2012 ${provider}. All rights reserved.`,
+        `${pitch} Web Hosting Solutions. Web Hosting: courtesy of ${provider} Contact Us Help Centre About Us Terms of Service © 2026 ${provider} All rights reserved`,
+        `${pitch} Web Hosting Solutions Web Hosting courtesy of ${provider} Help Center Contact Us About Us Affiliates Terms Copyright 2012-2026 ${provider} All rights reserved.`,
+        `${pitch} Web Hosting Solutions Web Hosting - courtesy of www.${provider} Awards --> Help Center Contact Us About Us Affiliates Terms &copy;2012 ${provider}. All rights reserved.`,
+        `${pitch} Web Hosting Solutions Web Hosting - courtesy of ${provider} Help Center About Us Contact Us Terms (c) 2026 www.${provider}. All rights reserved.`,
+      ]))
+    it.each(bodies)('rejects the complete holding template without depending on provider or title: %s', text => {
+      for (const title of ['', 'Welcome', page.title]) {
+        expect(researchPageFailure({ ...page, title, text })).toBe('unavailable_page')
+        expect(researchPageFailure({ ...page, title, text: text.replaceAll(' ', '\n\t') })).toBe('unavailable_page')
+      }
+    })
+    it.each(bodies)('preserves real business prose alongside the template: %s', text => {
+      expect(researchPageFailure({ ...page, text: `${page.text} ${text}` })).toBeNull()
+      expect(researchPageFailure({ ...page, text: `${text} ${page.text}` })).toBeNull()
+    })
+    it.each([
+      'Affordable, Reliable Web Hosting Solutions. Our managed plans include backups and local telephone support. Contact us to arrange migration.',
+      'Affordable, Reliable Web Hosting Solutions Web Hosting - courtesy of ExampleHost. We offer managed servers from $12 monthly. Contact Us About Us Terms ©2026 ExampleHost All rights reserved.',
+      'Example Clinic. Appointments, opening hours and contact information. Web hosting courtesy of ExampleHost. All rights reserved.',
+      'Help Center Contact Us About Us Affiliates Terms. Example Hosting provides backups, migrations and hosting packages for local businesses.',
+      'Affordable, Reliable Web Hosting Solutions. Our shop has retired after many years of service. Thank you to all customers for your support.',
+      'Example Salon has moved to a new location. Call our team to book an appointment. Web Hosting - courtesy of ExampleHost.',
+      'Affordable, Reliable Web Hosting Solutions. Help Center Contact Us About Us Affiliates Terms ©2026 ExampleHost All rights reserved.',
+    ])('does not ban hosting, navigation, relocation or retirement language: %s', text => {
+      expect(researchPageFailure({ ...page, text })).toBeNull()
+    })
   })
 })

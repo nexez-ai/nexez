@@ -254,7 +254,7 @@ begin
   assert (public.study_run_status('test-v3')->>'researchProtocolVersion')::integer=3;
   begin update public.study_runs set research_protocol_version=3 where cohort='test-quality';
     raise exception 'protocol 2 relabeled'; exception when raise_exception then assert sqlerrm='study_protocol_frozen'; end;
-  begin insert into public.study_runs(cohort,research_protocol_version) values('test-unknown-protocol',6);
+  begin insert into public.study_runs(cohort,research_protocol_version) values('test-unknown-protocol',7);
     raise exception 'unknown protocol accepted'; exception when check_violation then null; end;
   assert public.dispatch_readiness_study('test-v3')='dispatched';
 end $$;
