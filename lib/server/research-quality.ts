@@ -1,5 +1,5 @@
 /** Research-only protocol. Customer scan scoring and behavior stay unchanged. */
-export const RESEARCH_PROTOCOL_VERSION = 5 as const
+export const RESEARCH_PROTOCOL_VERSION = 6 as const
 export const RESEARCH_MIN_VISIBLE_CHARS = 80
 
 // Mirrors the frozen source selector. A regression test guards policy drift.
@@ -85,6 +85,13 @@ export function researchPageFailure(input: {
     || /^future home of\b.{0,120}\bif you['’]re the site owner\b.{0,100}\blog in to launch this site\b.{0,160}\bplease check back soon[.!]?$/i.test(text)
     || /^(?:the|this) website is currently down[.!]?\s*we['’]re sorry for the inconvenience\b.{0,300}\bweb support team\b.{0,180}$/i.test(text)
   )) return 'unavailable_page'
+  // A provider's promotional holding page can have a business-like title and
+  // ample HTML. Require its complete short template: generic pitch, attribution,
+  // provider-only navigation and copyright footer. Hosting mentions alone are
+  // not exclusions, and useful content before or after this body still qualifies.
+  const compactText = text.replace(/\s+/g, ' ')
+  if (compactText.length < 600
+    && /^(?:affordable(?:,? | and )reliable|reliable(?:,? | and )affordable) web hosting solutions[.!]? web hosting\s*[-:|]?\s*courtesy of (?:www\.)?([a-z0-9][a-z0-9&.+()'/-]*(?: [a-z0-9][a-z0-9&.+()'/-]*){0,4}) (?:awards\s*(?:-->)?\s*)?(?:(?:help cent(?:er|re)|contact us|about us|affiliates|terms(?: of (?:service|use))?)\s+){3,8}(?:&copy;|©|\(c\)|copyright)\s*\d{4}(?:\s*-\s*\d{4})?\s+(?:www\.)?\1\.?\s+all rights reserved[.!]?$/i.test(compactText)) return 'unavailable_page'
   if (text.length < 600 && /^(?:this|the) website may be down\b/i.test(text)
     && /\bsite available for sale[.!]?\s*contact\b/i.test(text)) return 'parked_domain'
   if (/^(?:just a moment(?:\.\.\.)?|attention required|security (?:check|verification)|verify (?:you are|you're) human)[!?.\s]*$/i.test(title)
