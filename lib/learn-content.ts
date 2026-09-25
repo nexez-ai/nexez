@@ -90,8 +90,10 @@ import { returnPoliciesForAiAgents } from './learn-articles/return-policies-for-
 import { whenAiGetsYourBusinessWrong } from './learn-articles/when-ai-gets-your-business-wrong'
 import { deliveryPromisesForAiAgents } from './learn-articles/delivery-promises-for-ai-agents'
 import { whatStopsAgentsCompletingTasks } from './learn-articles/what-stops-agents-completing-tasks'
+import { formsAgentsCanFill } from './learn-articles/forms-agents-can-fill'
 
 export const learnArticles: LearnArticle[] = [
+  formsAgentsCanFill,
   whatStopsAgentsCompletingTasks,
   deliveryPromisesForAiAgents,
   whenAiGetsYourBusinessWrong,
