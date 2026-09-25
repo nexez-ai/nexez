@@ -3,6 +3,7 @@ import { getImportUrlError, getResolvedImportUrlError, safeFetch } from '../impo
 import { parseRobotsForAgentBots, type AgentBot, type CrawlabilitySignals } from '../crawlability'
 import { readBodyCapped } from './read-body-capped'
 import { isResearchLlmsText, researchPageDiagnostics, researchPageFailure, RESEARCH_PROTOCOL_VERSION, type ResearchQuality } from './research-quality'
+import { extractResearchHtml } from './research-html'
 
 export { readBodyCapped } from './read-body-capped'
 
@@ -299,10 +300,8 @@ async function gatherSiteSignalsWithOptions(rawUrl: string, options: SiteScanOpt
   const html = page.html
   const lower = html.toLowerCase()
   const visibleText = stripHtmlToText(html, 50_000)
-  const researchText = options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION
-    ? stripHtmlToText(html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, ''), 50_000) : ''
-  const researchTitle = options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION
-    ? stripHtmlToText(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '') : ''
+  const { text: researchText, title: researchTitle } = options.researchProtocolVersion === RESEARCH_PROTOCOL_VERSION
+    ? extractResearchHtml(html) : { text: '', title: '' }
   const structured = extractStructuredEvidence(html)
   const robots = parseRobotsForAgentBots(robotsTxt)
   const metaDate = html.match(/<meta[^>]+(?:property|name)=["'](?:article:modified_time|date|last-modified)["'][^>]+content=["']([^"']+)["']/i)?.[1]

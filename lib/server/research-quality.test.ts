@@ -8,7 +8,7 @@ const page = {
   text: 'Acme Plumbing provides repairs and installation throughout our local service area. Contact our team to schedule a visit.',
 }
 
-describe('research protocol 6 content validation', () => {
+describe('research protocol 7 content validation', () => {
   it('keeps final-destination exclusions aligned with the source policy', () => {
     expect(RESEARCH_EXCLUDED_HOSTS).toEqual(EXCLUDED_HOSTS)
   })

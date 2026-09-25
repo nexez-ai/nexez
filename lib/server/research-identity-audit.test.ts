@@ -38,9 +38,9 @@ describe('private research identity review', () => {
     status.mockResolvedValue({ state: 'paused', researchProtocolVersion: 4 })
     expect((await readResearchIdentityAudit('old-cohort'))?.protocol).toBe(4)
   })
-  it('supports the stopped protocol-6 recovery without exposing its salt', async () => {
-    status.mockResolvedValue({ state: 'paused', researchProtocolVersion: 6 })
-    expect((await readResearchIdentityAudit('recovery-cohort'))?.protocol).toBe(6)
+  it.each([6, 7])('supports the stopped protocol-%s recovery without exposing its salt', async protocol => {
+    status.mockResolvedValue({ state: 'paused', researchProtocolVersion: protocol })
+    expect((await readResearchIdentityAudit('recovery-cohort'))?.protocol).toBe(protocol)
   })
   it.each(['running', 'pilot', 'preparing'])('rejects the active or unready %s state before reading identities', async state => {
     status.mockResolvedValue({ state, researchProtocolVersion: 5 })
